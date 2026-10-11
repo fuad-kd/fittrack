@@ -49,13 +49,12 @@ const GymMap = () => {
           setLoadingGps(false);
         },
         (error) => {
-          console.error("Error getting location", error);
-          alert("Location access denied or unavailable.");
+          console.warn("Location access denied or unavailable:", error);
           setLoadingGps(false);
         }
       );
     } else {
-      alert("Geolocation is not supported by this browser.");
+      console.warn("Geolocation is not supported by this browser.");
     }
   };
 
