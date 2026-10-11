@@ -261,3 +261,31 @@ create policy "Anyone readable" on public.workout_ratings for select using (true
 drop policy if exists "Users manage own ratings" on public.workout_ratings;
 create policy "Users manage own ratings" on public.workout_ratings for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- ============================================================
+-- WEEK 7: Exercise Volume & Progression Analytics
+-- ============================================================
+
+create table if not exists public.exercise_logs (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null references auth.users(id) on delete cascade,
+  exercise_name  text not null,
+  muscle_group   text,
+  log_date       date not null default current_date,
+  weight_kg      numeric(6,2) not null,
+  sets           integer not null check (sets >= 1 and sets <= 50),
+  reps           integer not null check (reps >= 1 and reps <= 200),
+  volume_kg      numeric(8,2),
+  notes          text,
+  rpe            numeric(3,1),
+  created_at     timestamptz default now()
+);
+
+alter table public.exercise_logs enable row level security;
+drop policy if exists "Users manage own exercise logs" on public.exercise_logs;
+create policy "Users manage own exercise logs"
+  on public.exercise_logs
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+

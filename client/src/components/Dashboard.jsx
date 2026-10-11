@@ -15,12 +15,20 @@ import {
   ChevronRight,
   Flame,
   Activity,
-  Award,
   Plus,
-  ArrowUpRight,
   Shield,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
 
 import Workouts from './Workouts';
 import WorkoutLog from './WorkoutLog';
@@ -49,6 +57,9 @@ const Dashboard = () => {
     postsCount: 0,
     loading: true,
   });
+  const [volumeChartData, setVolumeChartData] = useState([]);
+  const [totalVolumeLogged, setTotalVolumeLogged] = useState(0);
+  const [selectedExerciseForProgression, setSelectedExerciseForProgression] = useState(null);
 
   const bannerRef = useRef(null);
   const kpiRef = useRef(null);
@@ -59,12 +70,30 @@ const Dashboard = () => {
     if (!user) return;
     const fetchKPIs = async () => {
       try {
-        const [plansRes, logsRes, progressRes, postsRes] = await Promise.all([
+        const [plansRes, logsRes, progressRes, postsRes, exerciseLogsRes] = await Promise.all([
           supabase.from('workout_plans').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
           supabase.from('workout_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
           supabase.from('progress_entries').select('weight_kg').eq('user_id', user.id).order('entry_date', { ascending: false }).limit(1),
           supabase.from('posts').select('id', { count: 'exact', head: true }),
+          supabase.from('exercise_logs').select('log_date, volume_kg, weight_kg, sets, reps').eq('user_id', user.id).order('log_date', { ascending: true }),
         ]);
+
+        const eLogs = exerciseLogsRes.data || [];
+        const dateMap = {};
+        let totalVol = 0;
+        eLogs.forEach(l => {
+          const v = Number(l.volume_kg) || ((Number(l.weight_kg) || 0) * (Number(l.sets) || 1) * (Number(l.reps) || 1));
+          dateMap[l.log_date] = (dateMap[l.log_date] || 0) + v;
+          totalVol += v;
+        });
+
+        const vData = Object.entries(dateMap).map(([date, volume]) => ({
+          date,
+          volume: Math.round(volume),
+        })).slice(-10);
+
+        setVolumeChartData(vData);
+        setTotalVolumeLogged(totalVol);
 
         setStats({
           plansCount: plansRes.count || 0,
@@ -234,6 +263,79 @@ const Dashboard = () => {
                 <span className="kpi-sub">Member shared posts</span>
               </div>
             </div>
+
+            {/* ── Recharts Training Volume Trajectory Preview ── */}
+            {volumeChartData.length > 0 && (
+              <div className="dash-volume-preview-card">
+                <div className="dash-volume-preview-header">
+                  <div className="vol-title-group">
+                    <div className="vol-icon-badge">
+                      <BarChart3 size={18} className="text-gold" />
+                    </div>
+                    <div>
+                      <h3>Overall Training Volume Trajectory</h3>
+                      <p>Cumulative workload moved across recent workout sessions (Recharts visualization)</p>
+                    </div>
+                  </div>
+
+                  <div className="vol-header-right">
+                    <div className="total-tonnage-chip">
+                      <span>Total Workload:</span>
+                      <strong>{totalVolumeLogged.toLocaleString()} kg</strong>
+                    </div>
+                    <button
+                      className="btn-view-full-analytics"
+                      onClick={() => setActiveTab('progress')}
+                    >
+                      <TrendingUp size={15} />
+                      <span>Exercise Progression Charts</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="dash-recharts-chart-wrap">
+                  <ResponsiveContainer width="100%" height={230}>
+                    <AreaChart data={volumeChartData} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="dashVolumeGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10B981" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#10B981" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#232838" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#8B949E"
+                        tick={{ fill: '#8B949E', fontSize: 11 }}
+                      />
+                      <YAxis
+                        stroke="#10B981"
+                        tick={{ fill: '#10B981', fontSize: 11 }}
+                        unit="kg"
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#0E1320',
+                          borderColor: '#10B981',
+                          borderRadius: '8px',
+                          color: '#F0EDE8',
+                          fontSize: '0.82rem'
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="volume"
+                        name="Session Volume"
+                        stroke="#10B981"
+                        strokeWidth={2.5}
+                        fill="url(#dashVolumeGrad)"
+                        dot={{ fill: '#10B981', r: 4 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* ── Feature Launchpad Tiles ── */}
             <div className="section-header">

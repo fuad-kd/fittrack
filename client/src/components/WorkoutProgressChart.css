@@ -1,0 +1,757 @@
+/* ============================================================
+   FitTrack – WorkoutProgressChart.css
+   Luxury dark theme with gold, emerald, cyan, and violet accents
+============================================================ */
+
+.workout-progress-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* ── Header ── */
+.wpc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #0D111C;
+  border: 1px solid #1E2638;
+  border-radius: 12px;
+}
+
+.wpc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wpc-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(245, 197, 66, 0.1);
+  border: 1px solid rgba(245, 197, 66, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wpc-header-left h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #F0EDE8;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.wpc-header-left p {
+  font-size: 0.85rem;
+  color: #8B949E;
+  margin-top: 2px;
+}
+
+.btn-wpc-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  background: linear-gradient(135deg, #F5C542 0%, #D4A017 100%);
+  color: #07070A;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(245, 197, 66, 0.2);
+}
+
+.btn-wpc-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(245, 197, 66, 0.35);
+}
+
+.wpc-feedback-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  color: #10B981;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* ── Filter / Controls Bar ── */
+.wpc-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #0E1320;
+  border: 1px solid #1A2132;
+  border-radius: 10px;
+}
+
+.wpc-exercise-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.wpc-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8B949E;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wpc-select {
+  padding: 0.5rem 0.85rem;
+  background: #141A29;
+  border: 1px solid #28334A;
+  border-radius: 6px;
+  color: #F0EDE8;
+  font-size: 0.875rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 220px;
+}
+
+.wpc-select:focus {
+  border-color: #F5C542;
+}
+
+.wpc-mode-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #141A29;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #232B3D;
+  flex-wrap: wrap;
+}
+
+.wpc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #8B949E;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wpc-pill:hover {
+  color: #F0EDE8;
+}
+
+.wpc-pill.active {
+  background: #1E283D;
+  color: #F5C542;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.wpc-timeframe-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #141A29;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid #232B3D;
+}
+
+.wpc-time-btn {
+  padding: 0.35rem 0.65rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #8B949E;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wpc-time-btn:hover {
+  color: #F0EDE8;
+}
+
+.wpc-time-btn.active {
+  background: #F5C542;
+  color: #07070A;
+}
+
+/* ── Quick Pills Row ── */
+.wpc-quick-pills-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.quick-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #6E7681;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-right: 0.25rem;
+}
+
+.quick-pill {
+  padding: 0.35rem 0.75rem;
+  background: rgba(26, 33, 50, 0.6);
+  border: 1px solid rgba(42, 53, 76, 0.6);
+  border-radius: 20px;
+  color: #A0AAB7;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-pill:hover {
+  border-color: #F5C542;
+  color: #F5C542;
+}
+
+.quick-pill.active {
+  background: rgba(245, 197, 66, 0.12);
+  border-color: #F5C542;
+  color: #F5C542;
+  font-weight: 600;
+}
+
+/* ── KPI Grid ── */
+.wpc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.wpc-kpi-card {
+  padding: 1.1rem 1.25rem;
+  background: #0E1320;
+  border: 1px solid #1E273A;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.wpc-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: #2F3C56;
+}
+
+.wpc-kpi-card.gold { border-top: 3px solid #F5C542; }
+.wpc-kpi-card.emerald { border-top: 3px solid #10B981; }
+.wpc-kpi-card.violet { border-top: 3px solid #A855F7; }
+.wpc-kpi-card.cyan { border-top: 3px solid #06B6D4; }
+
+.wpc-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: #8B949E;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.wpc-kpi-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #F0EDE8;
+  margin: 0.4rem 0 0.15rem 0;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.wpc-kpi-sub {
+  font-size: 0.75rem;
+  color: #6E7681;
+}
+
+/* ── Log Form Card ── */
+.wpc-log-form-card {
+  background: #0F1424;
+  border: 1px solid #2A364E;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wpc-form-head h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #F0EDE8;
+  margin: 0;
+}
+
+.wpc-form-head span {
+  font-size: 0.8rem;
+  color: #8B949E;
+}
+
+.wpc-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.wpc-form-grid.four-col {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.wpc-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.wpc-form-group label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #A0AAB7;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.wpc-input {
+  padding: 0.6rem 0.85rem;
+  background: #161D2E;
+  border: 1px solid #2A364E;
+  border-radius: 6px;
+  color: #F0EDE8;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.wpc-input:focus {
+  border-color: #F5C542;
+}
+
+.wpc-input.input-error {
+  border-color: #EF4444;
+}
+
+.wpc-error-text {
+  font-size: 0.75rem;
+  color: #EF4444;
+}
+
+.wpc-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1E273A;
+}
+
+.live-volume-preview {
+  font-size: 0.85rem;
+  color: #10B981;
+}
+
+.live-volume-preview strong {
+  font-size: 1rem;
+  color: #F0EDE8;
+}
+
+.btn-wpc-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.35rem;
+  background: linear-gradient(135deg, #F5C542 0%, #D4A017 100%);
+  color: #07070A;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-wpc-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(245, 197, 66, 0.35);
+}
+
+.btn-wpc-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Main Chart Card ── */
+.wpc-chart-card {
+  background: #0E1320;
+  border: 1px solid #1E2638;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.wpc-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #182030;
+}
+
+.chart-title-group h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #F0EDE8;
+  margin: 0;
+}
+
+.chart-mode-badge {
+  font-size: 0.75rem;
+  color: #F5C542;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.chart-legend-custom {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #8B949E;
+}
+
+.legend-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend-indicator.gold { background: #F5C542; }
+.legend-indicator.emerald { background: #10B981; }
+.legend-indicator.violet { background: #A855F7; }
+
+.wpc-empty-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 280px;
+  text-align: center;
+  color: #8B949E;
+  padding: 2rem;
+}
+
+.wpc-empty-chart h4 {
+  color: #F0EDE8;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.wpc-empty-chart p {
+  font-size: 0.85rem;
+  max-width: 420px;
+}
+
+.wpc-chart-canvas-wrap {
+  width: 100%;
+  min-height: 380px;
+}
+
+/* ── Custom Recharts Tooltip ── */
+.recharts-custom-tooltip {
+  background: rgba(14, 19, 32, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid #F5C542;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  min-width: 200px;
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #232B3D;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #F0EDE8;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tooltip-metric-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tooltip-label {
+  color: #8B949E;
+}
+
+.tooltip-val {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.tooltip-sub-info {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed #232B3D;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #A0AAB7;
+}
+
+.rpe-badge {
+  padding: 1px 6px;
+  background: rgba(245, 197, 66, 0.15);
+  border: 1px solid rgba(245, 197, 66, 0.3);
+  border-radius: 4px;
+  color: #F5C542;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.tooltip-notes {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: #6E7681;
+  font-style: italic;
+  max-width: 220px;
+}
+
+/* ── Bottom Grid (Distribution + Table) ── */
+.wpc-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.wpc-secondary-card {
+  background: #0E1320;
+  border: 1px solid #1E2638;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.wpc-card-header-small {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wpc-card-header-small h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #F0EDE8;
+  margin: 0;
+}
+
+.card-sub-small {
+  font-size: 0.78rem;
+  color: #6E7681;
+  margin-top: -0.35rem;
+}
+
+.muscle-bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.muscle-progress-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.muscle-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.muscle-name {
+  color: #F0EDE8;
+  font-weight: 500;
+}
+
+.muscle-vol {
+  color: #10B981;
+  font-weight: 600;
+}
+
+.muscle-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #182030;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.muscle-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10B981 0%, #06B6D4 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ── Table Card ── */
+.table-card {
+  overflow: hidden;
+}
+
+.table-scroll-wrap {
+  overflow-x: auto;
+  max-height: 280px;
+}
+
+.wpc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.wpc-table th {
+  padding: 0.6rem 0.75rem;
+  color: #8B949E;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #1E273A;
+  background: #0E1320;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.wpc-table td {
+  padding: 0.6rem 0.75rem;
+  color: #C9D1D9;
+  border-bottom: 1px solid #161D2D;
+}
+
+.wpc-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table-rpe-badge {
+  padding: 2px 6px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 4px;
+  color: #C084FC;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.btn-trash-row-small {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: #6E7681;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-trash-row-small:hover {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.table-empty-small {
+  font-size: 0.8rem;
+  color: #6E7681;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* Accent text utilities */
+.text-gold { color: #F5C542; }
+.text-emerald { color: #10B981; }
+.text-violet { color: #A855F7; }
+.text-cyan { color: #06B6D4; }
+.text-muted { color: #6E7681; }
+.text-white { color: #F0EDE8; }

@@ -12,10 +12,19 @@ import {
   X, 
   Sparkles, 
   CheckCircle2, 
-  Image as ImageIcon,
-  Calendar,
-  Activity
+  Activity,
+  Dumbbell
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from 'recharts';
+import WorkoutProgressChart from './WorkoutProgressChart';
 import './ProgressTracker.css';
 
 const emptyForm = {
@@ -29,10 +38,11 @@ const emptyForm = {
   notes:      '',
 };
 
-export default function ProgressTracker() {
+export default function ProgressTracker({ initialExercise = null }) {
   const { user } = useAuth();
   const fileRef = useRef(null);
 
+  const [activeSubTab, setActiveSubTab] = useState('exercise-progression');
   const [entries,      setEntries]      = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
@@ -168,35 +178,68 @@ export default function ProgressTracker() {
 
   const latest = entries[0] || null;
 
+  const bodyChartData = [...entries]
+    .filter(e => e.weight_kg != null)
+    .sort((a, b) => new Date(a.entry_date) - new Date(b.entry_date))
+    .map(e => ({
+      date: e.entry_date,
+      weight_kg: Number(e.weight_kg),
+      calories: Number(e.calories) || null,
+    }));
+
   return (
     <div className="progress-tracker-page">
-      {/* ── Header ── */}
-      <div className="pt-header">
-        <div className="pt-title-group">
-          <div className="pt-icon-box">
-            <TrendingUp size={22} />
-          </div>
-          <div>
-            <h2>Body Composition & Metrics</h2>
-            <p>Monitor physical transformations, caliper measurements, and caloric baselines.</p>
-          </div>
-        </div>
-
+      {/* ── Top Module View Switcher ── */}
+      <div className="pt-nav-switcher">
         <button
-          className="btn-log-metrics"
-          onClick={() => { setShowForm(s => !s); setErrors({}); }}
+          type="button"
+          className={`pt-nav-btn ${activeSubTab === 'exercise-progression' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('exercise-progression')}
         >
-          {showForm ? <X size={16} /> : <Plus size={16} />}
-          <span>{showForm ? 'Cancel' : 'Record Metrics'}</span>
+          <Dumbbell size={16} />
+          <span>Exercise Volume & Progression</span>
+        </button>
+        <button
+          type="button"
+          className={`pt-nav-btn ${activeSubTab === 'body-metrics' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('body-metrics')}
+        >
+          <Scale size={16} />
+          <span>Body Composition & Calipers</span>
         </button>
       </div>
 
-      {feedback && (
-        <div className="pt-feedback-banner">
-          <CheckCircle2 size={16} />
-          <span>{feedback}</span>
-        </div>
-      )}
+      {activeSubTab === 'exercise-progression' ? (
+        <WorkoutProgressChart initialExercise={initialExercise} />
+      ) : (
+        <>
+          {/* ── Header ── */}
+          <div className="pt-header">
+            <div className="pt-title-group">
+              <div className="pt-icon-box">
+                <TrendingUp size={22} />
+              </div>
+              <div>
+                <h2>Body Composition & Metrics</h2>
+                <p>Monitor physical transformations, caliper measurements, and caloric baselines.</p>
+              </div>
+            </div>
+
+            <button
+              className="btn-log-metrics"
+              onClick={() => { setShowForm(s => !s); setErrors({}); }}
+            >
+              {showForm ? <X size={16} /> : <Plus size={16} />}
+              <span>{showForm ? 'Cancel' : 'Record Metrics'}</span>
+            </button>
+          </div>
+
+          {feedback && (
+            <div className="pt-feedback-banner">
+              <CheckCircle2 size={16} />
+              <span>{feedback}</span>
+            </div>
+          )}
 
       {/* ── Current Benchmark Stat Cards ── */}
       {latest && (
@@ -244,6 +287,67 @@ export default function ProgressTracker() {
               <span className="pt-kpi-split"> / {latest.arms_cm ? `${latest.arms_cm} cm` : '—'}</span>
             </div>
             <span className="pt-kpi-date">Upper body metrics</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Body Weight & Calorie Recharts Area Chart ── */}
+      {bodyChartData.length > 0 && (
+        <div className="pt-body-chart-card">
+          <div className="pt-body-chart-header">
+            <div>
+              <h4>Body Weight Trajectory & Caloric Baseline</h4>
+              <p>Recharts visualization of weigh-ins and daily calorie benchmarks</p>
+            </div>
+            <div className="pt-chart-legends">
+              <div className="legend-chip gold">
+                <span className="dot" />
+                <span>Weight (kg)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-recharts-wrap">
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={bodyChartData} margin={{ top: 15, right: 20, left: -10, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="bodyWeightGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F5C542" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#F5C542" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#232838" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#8B949E"
+                  tick={{ fill: '#8B949E', fontSize: 12 }}
+                />
+                <YAxis
+                  stroke="#F5C542"
+                  tick={{ fill: '#F5C542', fontSize: 12 }}
+                  domain={['dataMin - 1', 'dataMax + 1']}
+                  unit="kg"
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0E1320',
+                    borderColor: '#F5C542',
+                    borderRadius: '8px',
+                    color: '#F0EDE8',
+                    fontSize: '0.85rem'
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="weight_kg"
+                  name="Body Weight"
+                  stroke="#F5C542"
+                  strokeWidth={2.5}
+                  fill="url(#bodyWeightGrad)"
+                  dot={{ fill: '#F5C542', r: 4 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
@@ -497,6 +601,8 @@ export default function ProgressTracker() {
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
