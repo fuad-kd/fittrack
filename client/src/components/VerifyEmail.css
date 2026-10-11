@@ -1,0 +1,387 @@
+/* ============================================================
+   VerifyEmail.css — FitTrack "Gold Obsidian" Luxury Theme
+   Split-panel layout matching Login.css / Register.css
+============================================================ */
+
+/* ── Design tokens ── */
+:root {
+  --gold:         #C8A87A;
+  --gold-light:   #E8D5B0;
+  --gold-dim:     rgba(200, 168, 122, 0.5);
+  --gold-border:  rgba(200, 168, 122, 0.15);
+  --gold-glow:    rgba(200, 168, 122, 0.08);
+  --bg:           #07070A;
+  --surface:      #0D0E14;
+  --surface-2:    #14151E;
+  --surface-3:    #1E2030;
+  --text:         #F0EDE8;
+  --text-muted:   #5A5D6B;
+  --text-dim:     #9A9CA8;
+  --error-color:  #D97070;
+  --error-bg:     rgba(217, 112, 112, 0.07);
+}
+
+/* ── Wrapper: full-screen split ── */
+.auth-wrapper {
+  display: flex;
+  width: 100vw;
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════
+   LEFT HERO PANEL
+══════════════════════════════════════ */
+.auth-left {
+  flex: 0 0 58%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+
+  background-image:
+    url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1600&q=80');
+  background-size: cover;
+  background-position: center 30%;
+}
+
+/* Multi-layer dark overlay */
+.left-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom,  rgba(7,7,10,0.55) 0%,  rgba(7,7,10,0.1)  40%, rgba(7,7,10,0.88) 100%),
+    linear-gradient(to right,   rgba(7,7,10,0.3)  0%,  transparent        60%, rgba(7,7,10,0.95) 100%);
+  z-index: 1;
+}
+
+.left-content {
+  position: relative;
+  z-index: 2;
+  padding: 3.5rem 4rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Brand mark */
+.left-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.brand-line {
+  display: inline-block;
+  width: 28px;
+  height: 1px;
+  background: var(--gold);
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.55em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+/* Hero heading */
+.hero-heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(3rem, 5vw, 5rem);
+  font-weight: 300;
+  line-height: 1.05;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.hero-heading em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  line-height: 1.75;
+  max-width: 300px;
+  margin: 0.6rem 0 0;
+}
+
+/* Icon bullets */
+.verify-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.verify-bullet {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.83rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+.vb-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+/* Corner decorations */
+.corner-tl,
+.corner-br {
+  position: absolute;
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+}
+
+.corner-tl {
+  top: 2rem;
+  left: 2rem;
+  border-top: 1px solid var(--gold-dim);
+  border-left: 1px solid var(--gold-dim);
+}
+
+.corner-br {
+  bottom: 2rem;
+  right: 2rem;
+  border-bottom: 1px solid var(--gold-dim);
+  border-right: 1px solid var(--gold-dim);
+}
+
+/* ══════════════════════════════════════
+   RIGHT FORM PANEL
+══════════════════════════════════════ */
+.auth-right {
+  flex: 1;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2.5rem;
+  min-height: 100vh;
+  overflow-y: auto;
+  border-left: 1px solid rgba(200, 168, 122, 0.07);
+}
+
+.form-container {
+  width: 100%;
+  max-width: 360px;
+}
+
+/* Mobile-only logo */
+.mobile-logo {
+  display: none;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 2.5rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.55em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+/* Form header */
+.form-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.8rem;
+}
+
+.form-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 3rem;
+  font-weight: 300;
+  line-height: 1.05;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+
+/* Gold decorative rule */
+.gold-rule {
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(to right, var(--gold), transparent);
+  margin-bottom: 2.4rem;
+}
+
+/* ── Email box ── */
+.verify-email-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: rgba(200, 168, 122, 0.05);
+  border: 1px solid rgba(200, 168, 122, 0.12);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.6rem;
+}
+
+.verify-email-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.verify-sent-text {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: 0 0 0.3rem;
+}
+
+.verify-email-addr {
+  font-size: 0.92rem;
+  color: var(--gold);
+  font-weight: 500;
+  margin: 0;
+  word-break: break-all;
+  letter-spacing: 0.01em;
+}
+
+.verify-instruction {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.65;
+  margin-bottom: 0.6rem;
+}
+
+.verify-spam-note {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+/* ── Error / success banners ── */
+.error-banner {
+  background: var(--error-bg);
+  border-left: 2px solid var(--error-color);
+  color: #E08888;
+  padding: 0.8rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-bottom: 1.4rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.success-banner {
+  background: rgba(80, 200, 120, 0.07);
+  border-left: 2px solid #5FC88A;
+  color: #86efac;
+  padding: 0.8rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-bottom: 1.4rem;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ── Actions ── */
+.verify-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+/* ── Submit button ── */
+.btn-submit {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: var(--gold);
+  border: none;
+  color: #07070A;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s, box-shadow 0.25s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-submit:hover:not(:disabled) {
+  box-shadow: 0 6px 28px rgba(200, 168, 122, 0.3);
+}
+
+.btn-submit:active:not(:disabled) { transform: scale(0.985); }
+.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Form footer ── */
+.form-footer {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.form-footer a {
+  color: var(--gold);
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 0.3rem;
+  letter-spacing: 0.02em;
+  transition: color 0.2s;
+}
+
+.form-footer a:hover { color: var(--gold-light); }
+
+/* ══════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════ */
+@media (max-width: 900px) {
+  .auth-left { flex: 0 0 48%; }
+}
+
+@media (max-width: 700px) {
+  .auth-wrapper { flex-direction: column; }
+
+  .auth-left {
+    flex: none;
+    height: 38vh;
+    min-height: 260px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .left-content {
+    padding: 2rem;
+    align-items: center;
+    text-align: center;
+    gap: 1.4rem;
+  }
+
+  .hero-heading { font-size: 2.8rem; }
+  .hero-sub { display: none; }
+  .verify-bullets { display: none; }
+  .corner-tl, .corner-br { display: none; }
+
+  .auth-right {
+    flex: 1;
+    padding: 2.5rem 1.8rem;
+    min-height: auto;
+    border-left: none;
+    border-top: 1px solid rgba(200, 168, 122, 0.07);
+  }
+
+  .form-container { max-width: 100%; }
+  .mobile-logo { display: flex; }
+  .form-title { font-size: 2.2rem; }
+}
+
+@media (max-width: 400px) {
+  .hero-heading { font-size: 2.2rem; }
+  .auth-right { padding: 2rem 1.4rem; }
+}

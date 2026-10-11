@@ -1,0 +1,132 @@
+/* ============================================================
+   Register.css — FitTrack "Gold Obsidian" Luxury Theme
+============================================================ */
+
+/* ── Custom left panel image for Registration ── */
+.register-left {
+  background-image:
+    url('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=1600&q=80');
+  background-size: cover;
+  background-position: center;
+}
+
+.register-form-container {
+  max-width: 400px;
+  padding: 1.5rem 0;
+}
+
+/* ── Perks list on left panel ── */
+.perks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 0.5rem;
+}
+
+.perk-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.perk-icon {
+  color: var(--gold);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.perk-item h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+}
+
+.perk-item p {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* ── Form specific extensions ── */
+.label-optional {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0.05em;
+  margin-left: 0.35rem;
+  font-weight: 400;
+}
+
+/* ── Username status indicators ── */
+.input-wrap input.input-available {
+  border-bottom-color: #55B985;
+}
+
+.input-wrap input.input-taken {
+  border-bottom-color: var(--error-color);
+}
+
+.hint {
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 0.45rem;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+
+.hint.available {
+  color: #55B985;
+}
+
+.hint.taken {
+  color: #E08888;
+}
+
+.hint.checking {
+  color: var(--gold);
+}
+
+.hint.invalid {
+  color: #E5A96A;
+}
+
+/* ── Terms check ── */
+.terms-wrap {
+  margin: -0.5rem 0 2rem;
+}
+
+.terms-wrap .checkbox-wrap {
+  align-items: flex-start;
+}
+
+.terms-wrap .checkbox-wrap input[type="checkbox"] {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.terms-wrap span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.terms-wrap a {
+  color: var(--gold);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.terms-wrap a:hover {
+  color: var(--gold-light);
+  text-decoration: underline;
+}
+
+/* ── Responsive adjustments ── */
+@media (max-width: 700px) {
+  .perks-list {
+    display: none;
+  }
+}

@@ -1,0 +1,74 @@
+// ============================================================
+// FitTrack Luxury Obsidian & Champagne Gold Theme System
+// ============================================================
+
+$bg-void: #07090E;
+$bg-dark: #0B0E17;
+$bg-surface: #111726;
+$bg-surface-elevated: #182032;
+$bg-surface-glass: rgba(17, 24, 38, 0.75);
+
+$gold-400: #FDE68A;
+$gold-500: #F59E0B;
+$gold-600: #D97706;
+$gold-gradient: linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%);
+$gold-glow: 0 0 25px rgba(245, 158, 11, 0.25);
+
+$text-primary: #F8FAFC;
+$text-secondary: #CBD5E1;
+$text-muted: #64748B;
+
+$border-subtle: rgba(255, 255, 255, 0.08);
+$border-gold: rgba(245, 158, 11, 0.3);
+$border-gold-hover: rgba(245, 158, 11, 0.6);
+
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 18px;
+$radius-xl: 24px;
+$radius-full: 9999px;
+
+@mixin glass-panel {
+  background: $bg-surface-glass;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid $border-subtle;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin gold-button {
+  background: $gold-gradient;
+  color: #07090E;
+  font-weight: 600;
+  border: none;
+  border-radius: $radius-md;
+  padding: 0.65rem 1.4rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.35);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}

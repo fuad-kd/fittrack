@@ -1,0 +1,27 @@
+/* ============================================================
+   FitTrack Global Reset — index.css
+   Clean slate so component CSS controls everything.
+============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #07070A;
+  color: #F0EDE8;
+  overflow-x: hidden;
+}
+
+/* Remove the default width-cap on #root */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
