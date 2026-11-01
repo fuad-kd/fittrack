@@ -6,26 +6,26 @@ import Register from './components/Register';
 import VerifyEmail from './components/VerifyEmail';
 import Dashboard from './components/Dashboard';
 
+const LoadingScreen = () => (
+  <div style={{
+    height: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: '#0f1520',
+    color: '#f6d365',
+    fontSize: '1.2rem',
+    fontFamily: 'sans-serif',
+  }}>
+    💪 Loading FitTrack...
+  </div>
+);
+
 // Protected route – redirects to /login if not authenticated
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: '#0f1520',
-        color: '#f6d365',
-        fontSize: '1.2rem',
-        fontFamily: 'sans-serif',
-      }}>
-        💪 Loading FitTrack...
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen />;
 
   return user ? children : <Navigate to="/login" replace />;
 };
@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children }) => {
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
-  if (loading) return null;
+  if (loading) return <LoadingScreen />;
 
   return user ? <Navigate to="/dashboard" replace /> : children;
 };
