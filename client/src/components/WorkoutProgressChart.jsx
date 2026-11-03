@@ -186,10 +186,14 @@ export default function WorkoutProgressChart({ initialExercise = null }) {
 
     // Apply time range filter
     if (timeRange === '30d') {
-      const cutOff = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      const cutOff = d.toISOString().split('T')[0];
       filtered = filtered.filter(l => l.log_date >= cutOff);
     } else if (timeRange === '90d') {
-      const cutOff = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
+      const d = new Date();
+      d.setDate(d.getDate() - 90);
+      const cutOff = d.toISOString().split('T')[0];
       filtered = filtered.filter(l => l.log_date >= cutOff);
     }
 
