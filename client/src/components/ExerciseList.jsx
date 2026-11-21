@@ -9,17 +9,38 @@ import {
   Search, 
   Plus, 
   Trash2, 
-  Video, 
   Sparkles, 
   X, 
   ChevronLeft, 
   ChevronRight,
-  MessageSquare
+  MessageSquare,
+  Activity,
+  Maximize2,
+  CheckCircle2
 } from 'lucide-react';
+import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import YouTubeEmbed from './YouTubeEmbed';
 import './ExerciseList.css';
 
 const PAGE_SIZE = 5;
+
+// Helper to look up infographics by exercise name or fallback to push-up infographics
+function getExerciseInfographics(exName) {
+  if (!exName) return [];
+  const lower = exName.toLowerCase();
+  const matched = EXERCISE_LIBRARY.find(lib => 
+    lib.name.toLowerCase() === lower || 
+    lower.includes(lib.name.toLowerCase()) || 
+    lib.name.toLowerCase().includes(lower)
+  );
+  if (matched?.infographics?.length) return matched.infographics;
+  
+  if (lower.includes('push-up') || lower.includes('push up') || lower.includes('pushup')) {
+    const pushup = EXERCISE_LIBRARY.find(lib => lib.id === 'ch-3');
+    return pushup?.infographics || [];
+  }
+  return [];
+}
 
 const emptyEx = {
   name: '', muscle_group: '', sets: '', reps: '', weight_kg: '',
@@ -52,6 +73,9 @@ export default function ExerciseList({ plan, muscleGroups }) {
   const [filterMuscle, setFilterMuscle] = useState('');
   const [page,         setPage]         = useState(1);
   const [previewEx,    setPreviewEx]    = useState(null); // exercise whose video is shown
+  const [anatomyEx,    setAnatomyEx]    = useState(null); // exercise whose anatomy diagram is shown
+  const [activeAnatomyTab, setActiveAnatomyTab] = useState('');
+  const [lightboxImg,  setLightboxImg]  = useState(null);
 
   /* ── Fetch exercises ── */
   const fetchExercises = useCallback(async () => {
@@ -317,7 +341,11 @@ export default function ExerciseList({ plan, muscleGroups }) {
         <div className="exercise-cards-stack">
           {paginated.map(ex => {
             const ytId = extractYouTubeId(ex.youtube_url);
-            const isOpen = previewEx?.id === ex.id;
+            const isVideoOpen = previewEx?.id === ex.id;
+            const isAnatomyOpen = anatomyEx?.id === ex.id;
+            const infographics = getExerciseInfographics(ex.name);
+            const activeInfo = infographics.find(info => info.id === activeAnatomyTab) || infographics[0];
+
             return (
               <div key={ex.id} className="pro-exercise-item">
                 <div className="exercise-item-main">
@@ -325,6 +353,12 @@ export default function ExerciseList({ plan, muscleGroups }) {
                     <div className="title-row">
                       <h4>{ex.name}</h4>
                       <span className="muscle-pill">{ex.muscle_group}</span>
+                      {infographics.length > 0 && (
+                        <span className="anatomy-indicator-chip" title="Includes anatomical breakdown & variation diagrams">
+                          <Sparkles size={11} />
+                          <span>Anatomy Guide</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="metrics-chip-row">
@@ -353,13 +387,31 @@ export default function ExerciseList({ plan, muscleGroups }) {
                   </div>
 
                   <div className="item-actions">
+                    {infographics.length > 0 && (
+                      <button
+                        className={`btn-anatomy-action ${isAnatomyOpen ? 'active' : ''}`}
+                        onClick={() => {
+                          if (isAnatomyOpen) {
+                            setAnatomyEx(null);
+                          } else {
+                            setAnatomyEx(ex);
+                            setActiveAnatomyTab(infographics[0].id);
+                          }
+                        }}
+                        title="View anatomical muscle activation and push-up variations"
+                      >
+                        <Activity size={14} />
+                        <span>{isAnatomyOpen ? 'Close Anatomy' : 'Anatomy Guide'}</span>
+                      </button>
+                    )}
+
                     {ytId && (
                       <button
-                        className={`btn-video-guide ${isOpen ? 'active' : ''}`}
-                        onClick={() => setPreviewEx(isOpen ? null : ex)}
+                        className={`btn-video-guide ${isVideoOpen ? 'active' : ''}`}
+                        onClick={() => setPreviewEx(isVideoOpen ? null : ex)}
                       >
-                        {isOpen ? <ChevronUp size={14} /> : <Play size={14} />}
-                        <span>{isOpen ? 'Close Video' : 'Video Tutorial'}</span>
+                        {isVideoOpen ? <ChevronUp size={14} /> : <Play size={14} />}
+                        <span>{isVideoOpen ? 'Close Video' : 'Video Tutorial'}</span>
                       </button>
                     )}
 
@@ -373,9 +425,91 @@ export default function ExerciseList({ plan, muscleGroups }) {
                   </div>
                 </div>
 
-                {isOpen && ytId && (
+                {/* Video Drawer */}
+                {isVideoOpen && ytId && (
                   <div className="video-player-drawer">
                     <YouTubeEmbed videoId={ytId} title={ex.name} />
+                  </div>
+                )}
+
+                {/* Anatomy & Infographic Drawer */}
+                {isAnatomyOpen && infographics.length > 0 && activeInfo && (
+                  <div className="anatomy-diagram-drawer">
+                    <div className="anatomy-drawer-header">
+                      <div className="drawer-header-title">
+                        <Activity size={16} className="text-amber-400" />
+                        <h5>Anatomy & Variations Protocol</h5>
+                        <span className="info-badge-tag">{activeInfo.badge}</span>
+                      </div>
+                      
+                      {/* Tabs for infographics */}
+                      <div className="drawer-tabs-row">
+                        {infographics.map(info => (
+                          <button
+                            key={info.id}
+                            className={`drawer-tab-btn ${activeInfo.id === info.id ? 'active' : ''}`}
+                            onClick={() => setActiveAnatomyTab(info.id)}
+                          >
+                            <span>{info.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="anatomy-drawer-content">
+                      <div 
+                        className="anatomy-image-wrap"
+                        onClick={() => setLightboxImg({ src: activeInfo.image, title: activeInfo.title, subtitle: activeInfo.subtitle })}
+                        title="Click to view full image in high resolution"
+                      >
+                        <img 
+                          src={activeInfo.image} 
+                          alt={activeInfo.title} 
+                          className="drawer-anatomy-img" 
+                        />
+                        <div className="anatomy-zoom-hint">
+                          <Maximize2 size={14} />
+                          <span>Click to Zoom</span>
+                        </div>
+                      </div>
+
+                      <div className="anatomy-text-col">
+                        <h4>{activeInfo.title}</h4>
+                        <p className="active-info-subtitle">{activeInfo.subtitle}</p>
+                        <p className="active-info-desc">{activeInfo.summary}</p>
+
+                        {/* Variations list if available */}
+                        {activeInfo.variations && (
+                          <div className="drawer-variations-grid">
+                            {activeInfo.variations.map((v, i) => (
+                              <div key={i} className="drawer-variation-item">
+                                <div className="v-item-header">
+                                  <span className="v-num">{v.number || i + 1}</span>
+                                  <strong>{v.name}</strong>
+                                  <span className="v-focus">{v.focus}</span>
+                                </div>
+                                <p>{v.cues}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Muscle list if available */}
+                        {activeInfo.targetMuscles && (
+                          <div className="drawer-muscles-list">
+                            <span className="list-title">Target Muscles & Biomechanics:</span>
+                            <ul>
+                              {activeInfo.targetMuscles.map((m, idx) => (
+                                <li key={idx}>
+                                  <CheckCircle2 size={13} className="text-emerald-400" />
+                                  <span>{m}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -420,6 +554,27 @@ export default function ExerciseList({ plan, muscleGroups }) {
           <span className="page-range-info">
             Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
           </span>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxImg && (
+        <div className="lightbox-backdrop" onClick={() => setLightboxImg(null)}>
+          <div className="lightbox-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="lightbox-topbar">
+              <div className="lightbox-titles">
+                <span className="lightbox-badge">High-Resolution Anatomical Diagram</span>
+                <h3>{lightboxImg.title}</h3>
+                {lightboxImg.subtitle && <p>{lightboxImg.subtitle}</p>}
+              </div>
+              <button className="lightbox-close-btn" onClick={() => setLightboxImg(null)} title="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="lightbox-image-viewport">
+              <img src={lightboxImg.src} alt={lightboxImg.title} className="lightbox-full-img" />
+            </div>
+          </div>
         </div>
       )}
     </div>

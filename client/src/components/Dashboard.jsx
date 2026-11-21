@@ -41,7 +41,8 @@ import {
   Calculator,
   RotateCcw,
   Trophy,
-  Zap
+  Zap,
+  Maximize2
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -226,6 +227,9 @@ const Dashboard = () => {
   const [todayExercises, setTodayExercises] = useState([]);
   const [activeVideoEx, setActiveVideoEx] = useState(null);
   const [isPlanCompletedToday, setIsPlanCompletedToday] = useState(false);
+  const [guidanceView, setGuidanceView] = useState('anatomy'); // 'anatomy' | 'video'
+  const [selectedInfographicKey, setSelectedInfographicKey] = useState('anatomy'); // 'anatomy' | 'variations' | 'biomechanics'
+  const [dashboardLightbox, setDashboardLightbox] = useState(null);
 
   /* ── 3. Progress Chart State ── */
   const [chartMetric, setChartMetric] = useState('composite'); // 'composite' | 'weight' | 'calories' | 'history'
@@ -318,47 +322,88 @@ const Dashboard = () => {
       });
       setTotalCaloriesBurned(totalBurned || 3420);
 
-      // 2. Today's Workout Plan
+      // 2. Today's Workout Plan & Movement Protocols
+      const defaultProtocolMovements = [
+        {
+          id: 'demo_ex_pushup',
+          name: 'Bodyweight Push-Up (Mastery Protocol)',
+          muscle_group: 'Chest & Triceps',
+          sets: 3,
+          reps: 15,
+          weight_kg: 0,
+          youtube_url: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+          notes: 'Keep elbows tucked at 45° — see anatomical guide for 4 variations and muscle activation',
+          hasInfographics: true,
+          infographicKey: 'anatomy'
+        },
+        {
+          id: 'demo_ex_elbows',
+          name: 'Elbows-In Push-Up (Triceps Focus)',
+          muscle_group: 'Triceps & Front Deltoids',
+          sets: 3,
+          reps: 12,
+          weight_kg: 0,
+          youtube_url: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+          notes: 'Keep elbows pinned tight to ribs — direct tricep overload',
+          hasInfographics: true,
+          infographicKey: 'elbows-in'
+        },
+        {
+          id: 'demo_ex_wide',
+          name: 'Wide-Grip Push-Up (Chest Width)',
+          muscle_group: 'Outer Pectorals & Shoulders',
+          sets: 3,
+          reps: 15,
+          weight_kg: 0,
+          youtube_url: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+          notes: '1.5x shoulder width for deep chest adduction and outer sternal stretch',
+          hasInfographics: true,
+          infographicKey: 'wide-grip'
+        },
+        {
+          id: 'demo_ex_pike',
+          name: 'Pike Push-Up (Shoulder Variation)',
+          muscle_group: 'Anterior Shoulders & Upper Chest',
+          sets: 3,
+          reps: 10,
+          weight_kg: 0,
+          youtube_url: 'https://www.youtube.com/watch?v=sposDXWEB0A',
+          notes: 'Inverted V stance to shift mechanical load directly to shoulders',
+          hasInfographics: true,
+          infographicKey: 'pike'
+        },
+        {
+          id: 'demo_ex_1',
+          name: 'Incline Barbell Bench Press',
+          muscle_group: 'Upper Chest',
+          sets: 4,
+          reps: 8,
+          weight_kg: 85,
+          youtube_url: 'https://www.youtube.com/watch?v=2yjwXTZQDDI',
+          notes: 'Pause 1s on chest for maximum mechanical tension'
+        },
+        {
+          id: 'demo_ex_2',
+          name: 'Weighted Chest Dips',
+          muscle_group: 'Lower Chest & Triceps',
+          sets: 3,
+          reps: 10,
+          weight_kg: 20,
+          youtube_url: 'https://www.youtube.com/watch?v=2z8JmcrW-As',
+          notes: 'Keep torso pitched forward 30 degrees'
+        }
+      ];
+
       if (plansList.length > 0) {
         const primaryPlan = plansList[0];
         setTodayPlan(primaryPlan);
         const planExs = exercisesList.filter(e => e.plan_id === primaryPlan.id);
-        setTodayExercises(planExs.length > 0 ? planExs : [
-          {
-            id: 'demo_ex_1',
-            name: 'Incline Barbell Bench Press',
-            muscle_group: 'Upper Chest',
-            sets: 4,
-            reps: 8,
-            weight_kg: 85,
-            youtube_url: 'https://www.youtube.com/watch?v=2yjwXTZQDDI',
-            notes: 'Pause 1s on chest for maximum mechanical tension'
-          },
-          {
-            id: 'demo_ex_2',
-            name: 'Weighted Chest Dips',
-            muscle_group: 'Lower Chest & Triceps',
-            sets: 3,
-            reps: 10,
-            weight_kg: 20,
-            youtube_url: 'https://www.youtube.com/watch?v=2z8JmcrW-As',
-            notes: 'Keep torso pitched forward 30 degrees'
-          },
-          {
-            id: 'demo_ex_3',
-            name: 'Standing Overhead Military Press',
-            muscle_group: 'Anterior Shoulders',
-            sets: 4,
-            reps: 6,
-            weight_kg: 60,
-            youtube_url: 'https://www.youtube.com/watch?v=QAQ64hK4SkI',
-            notes: 'Strict lockout overhead with neutral cervical spine'
-          }
-        ]);
-
-        if (planExs.length > 0) {
-          setActiveVideoEx(planExs[0]);
-        }
+        const finalExs = planExs.length > 0 ? planExs : defaultProtocolMovements;
+        setTodayExercises(finalExs);
+        setActiveVideoEx(finalExs[0]);
+      } else {
+        setTodayExercises(defaultProtocolMovements);
+        setActiveVideoEx(defaultProtocolMovements[0]);
       }
 
       // Check if logged today
@@ -1234,7 +1279,13 @@ const Dashboard = () => {
                         <div 
                           key={ex.id || idx} 
                           className={`exercise-row-item ${isSelected ? 'selected' : ''}`}
-                          onClick={() => setActiveVideoEx(ex)}
+                          onClick={() => {
+                            setActiveVideoEx(ex);
+                            if (ex.infographicKey) {
+                              setSelectedInfographicKey(ex.infographicKey);
+                              setGuidanceView('anatomy');
+                            }
+                          }}
                         >
                           <div className="ex-name-cell">
                             <span className="ex-num">{idx + 1}</span>
@@ -1259,6 +1310,10 @@ const Dashboard = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveVideoEx(ex);
+                              if (ex.infographicKey) {
+                                setSelectedInfographicKey(ex.infographicKey);
+                                setGuidanceView('anatomy');
+                              }
                             }}
                           >
                             <Play size={12} fill="currentColor" />
@@ -1273,29 +1328,393 @@ const Dashboard = () => {
                 <div className="workout-video-col">
                   <div className="video-card-header">
                     <div className="v-header-title">
-                      <Play size={16} className="text-gold" />
-                      <h4>Form & Technique Reference</h4>
+                      <Activity size={16} className="text-amber-400" />
+                      <h4>Exercise Protocol Guidance</h4>
                     </div>
+
+                    {/* View Mode Switcher: Anatomy & Variations vs YouTube Video */}
+                    <div className="guidance-toggle-bar">
+                      <button 
+                        className={`guidance-tab-btn ${guidanceView === 'anatomy' ? 'active' : ''}`}
+                        onClick={() => setGuidanceView('anatomy')}
+                        title="View Push-Up anatomical diagrams and variations guide"
+                      >
+                        <Sparkles size={12} />
+                        <span>Anatomy & Variations</span>
+                      </button>
+                      <button 
+                        className={`guidance-tab-btn ${guidanceView === 'video' ? 'active' : ''}`}
+                        onClick={() => setGuidanceView('video')}
+                        title="View video execution tutorial"
+                      >
+                        <Play size={12} fill="currentColor" />
+                        <span>Video Guide</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="active-guidance-subhead">
                     <span className="v-exercise-name">
-                      {activeVideoEx?.name || 'Exercise Demonstration'}
+                      {activeVideoEx?.name || 'Bodyweight Push-Up Protocol'}
+                    </span>
+                    <span className="v-focus-chip">
+                      {activeVideoEx?.muscle_group || 'Chest & Upper Body'}
                     </span>
                   </div>
 
-                  <div className="video-embed-box">
-                    <YouTubeEmbed 
-                      videoId={extractYouTubeId(activeVideoEx?.youtube_url)}
-                      title={activeVideoEx?.name || 'FitTrack Exercise Demo'}
-                    />
-                  </div>
+                  {guidanceView === 'anatomy' ? (
+                    <div className="protocol-anatomy-container">
+                      {/* Image sub-tabs */}
+                      <div className="protocol-infographic-tabs">
+                        <button
+                          className={`proto-tab-pill ${selectedInfographicKey === 'variations' ? 'active' : ''}`}
+                          onClick={() => setSelectedInfographicKey('variations')}
+                        >
+                          <span>1. Mastery (4 Variations)</span>
+                        </button>
+                        <button
+                          className={`proto-tab-pill ${selectedInfographicKey === 'anatomy' ? 'active' : ''}`}
+                          onClick={() => setSelectedInfographicKey('anatomy')}
+                        >
+                          <span>2. Anatomy Breakdown</span>
+                        </button>
+                        <button
+                          className={`proto-tab-pill ${selectedInfographicKey === 'elbows-in' ? 'active' : ''}`}
+                          onClick={() => setSelectedInfographicKey('elbows-in')}
+                        >
+                          <span>3. Elbows-In (Triceps 3D)</span>
+                        </button>
+                        <button
+                          className={`proto-tab-pill ${selectedInfographicKey === 'wide-grip' ? 'active' : ''}`}
+                          onClick={() => setSelectedInfographicKey('wide-grip')}
+                        >
+                          <span>4. Wide-Grip (Chest 3D)</span>
+                        </button>
+                        <button
+                          className={`proto-tab-pill ${selectedInfographicKey === 'pike' ? 'active' : ''}`}
+                          onClick={() => setSelectedInfographicKey('pike')}
+                        >
+                          <span>5. Pike Push-Up (Shoulders 3D)</span>
+                        </button>
+                        <button
+                          className={`proto-tab-pill ${selectedInfographicKey === 'biomechanics' ? 'active' : ''}`}
+                          onClick={() => setSelectedInfographicKey('biomechanics')}
+                        >
+                          <span>6. Grips & Biomechanics</span>
+                        </button>
+                      </div>
 
-                  <div className="video-coaching-cues">
-                    <h5>Coaching Cues & Bio-Mechanics:</h5>
-                    <ul>
-                      <li>Maintain 3-second eccentric tempo for heightened mechanical tension.</li>
-                      <li>Brace core dynamically; avoid spinal hyperextension under top working sets.</li>
-                      <li>Full muscular contraction at peak concentric lockout without joint snapping.</li>
-                    </ul>
-                  </div>
+                      {/* 1. Push-Up Mastery 4-Variation Overview */}
+                      {selectedInfographicKey === 'variations' && (
+                        <div className="proto-diagram-card">
+                          <div 
+                            className="proto-diagram-img-wrap"
+                            onClick={() => setDashboardLightbox({
+                              src: '/assets/aistudio/images__1__f41e5def.jpg',
+                              title: 'Push-Up Mastery: 4 Variations Protocol',
+                              subtitle: 'Elbows-In, Wide-Grip, Shoulder-Width & Pike Push-Up'
+                            })}
+                            title="Click to zoom high-resolution variations guide"
+                          >
+                            <img 
+                              src="/assets/aistudio/images__1__f41e5def.jpg" 
+                              alt="Push-Up Mastery 4 Variations"
+                              className="proto-diagram-image" 
+                            />
+                            <div className="proto-zoom-overlay">
+                              <Maximize2 size={14} />
+                              <span>Click to Zoom Full Poster</span>
+                            </div>
+                          </div>
+
+                          <div className="proto-diagram-analysis">
+                            <div className="analysis-title-row">
+                              <h6>4 Core Variations Breakdown</h6>
+                              <span className="kpi-badge gold">Click Any to Inspect 3D</span>
+                            </div>
+                            <div className="proto-variations-micro-grid">
+                              <div 
+                                className="micro-var-card" 
+                                onClick={() => setSelectedInfographicKey('elbows-in')}
+                                title="Click to view dedicated 3D Anatomical diagram & cover"
+                              >
+                                <strong>1. Elbows-In:</strong>
+                                <span>Focus: Triceps. Elbows pinned close to body. (Click for 3D)</span>
+                              </div>
+                              <div 
+                                className="micro-var-card" 
+                                onClick={() => setSelectedInfographicKey('wide-grip')}
+                                title="Click to view dedicated 3D Anatomical diagram & cover"
+                              >
+                                <strong>2. Wide-Grip:</strong>
+                                <span>Focus: Chest Width. 1.5x shoulder spread. (Click for 3D)</span>
+                              </div>
+                              <div 
+                                className="micro-var-card" 
+                                onClick={() => setSelectedInfographicKey('anatomy')}
+                                title="Click to view anatomical muscle chart"
+                              >
+                                <strong>3. Shoulder-Width:</strong>
+                                <span>Focus: Anterior Deltoids & general stability. (Click for 3D)</span>
+                              </div>
+                              <div 
+                                className="micro-var-card" 
+                                onClick={() => setSelectedInfographicKey('pike')}
+                                title="Click to view dedicated 3D Anatomical diagram & cover"
+                              >
+                                <strong>4. Pike Push-Up:</strong>
+                                <span>Focus: Overhead Shoulders & Upper Chest. (Click for 3D)</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 2. Standard Anatomy Breakdown */}
+                      {selectedInfographicKey === 'anatomy' && (
+                        <div className="proto-diagram-card">
+                          <div 
+                            className="proto-diagram-img-wrap"
+                            onClick={() => setDashboardLightbox({
+                              src: '/assets/aistudio/images__5__692e1d52.jpg',
+                              title: 'Bodyweight Push-Up: Anatomical Muscle Activation',
+                              subtitle: 'Anterior Deltoid, Upper/Lower Pectoralis Major & Triceps Brachii'
+                            })}
+                            title="Click to zoom high-resolution anatomical chart"
+                          >
+                            <img 
+                              src="/assets/aistudio/images__5__692e1d52.jpg" 
+                              alt="Push-Up Anatomical Muscle Breakdown"
+                              className="proto-diagram-image" 
+                            />
+                            <div className="proto-zoom-overlay">
+                              <Maximize2 size={14} />
+                              <span>Click to Zoom High-Res</span>
+                            </div>
+                          </div>
+
+                          <div className="proto-diagram-analysis">
+                            <div className="analysis-title-row">
+                              <h6>Primary Muscular Targets</h6>
+                              <span className="kpi-badge emerald">Medical Anatomy</span>
+                            </div>
+                            <div className="muscles-pills-wrap">
+                              <span className="muscle-callout-pill">Anterior Deltoid (Front Shoulder)</span>
+                              <span className="muscle-callout-pill">Pectoralis Major Upper (Clavicular)</span>
+                              <span className="muscle-callout-pill">Pectoralis Major Lower (Sternal)</span>
+                              <span className="muscle-callout-pill">Triceps Brachii (Long & Lateral Heads)</span>
+                            </div>
+                            <p className="proto-analysis-text">
+                              Concentric force transfers through the triceps and sternal pecs, stabilizing through the serratus anterior and anterior deltoid. Maintain rigid lumbar alignment.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Dedicated Elbows-In Push-Up 3D Anatomical Diagram */}
+                      {selectedInfographicKey === 'elbows-in' && (
+                        <div className="proto-diagram-card">
+                          <div 
+                            className="proto-diagram-img-wrap"
+                            onClick={() => setDashboardLightbox({
+                              src: '/assets/diagrams/elbows_in_pushup_diagram.jpg',
+                              title: '3D Anatomical Elbows-In Push-Up Diagram',
+                              subtitle: 'Start Plank vs Bottom Contracted Position — Vivid Red Highlighted Triceps Brachii'
+                            })}
+                            title="Click to zoom 3D Dummy anatomical diagram"
+                          >
+                            <img 
+                              src="/assets/diagrams/elbows_in_pushup_diagram.jpg" 
+                              alt="Elbows-In Push-Up 3D Anatomical Diagram"
+                              className="proto-diagram-image" 
+                            />
+                            <div className="proto-zoom-overlay">
+                              <Maximize2 size={14} />
+                              <span>Click to Zoom 3D Diagram</span>
+                            </div>
+                          </div>
+
+                          <div className="proto-diagram-analysis">
+                            <div className="analysis-title-row">
+                              <h6>Elbows-In Push-Up (Triceps Dominant)</h6>
+                              <button
+                                className="kpi-badge blue cursor-pointer"
+                                onClick={() => setDashboardLightbox({
+                                  src: '/assets/covers/elbows_in_pushup_cover.jpg',
+                                  title: 'Elbows-In Push-Up: Cinematic Gym Cover',
+                                  subtitle: 'Real human athlete executing strict rib-grazing tricep push-up'
+                                })}
+                                title="Click to view cinematic human cover"
+                              >
+                                View Real Human Cover
+                              </button>
+                            </div>
+                            <div className="muscles-pills-wrap">
+                              <span className="muscle-callout-pill">Triceps Brachii (All 3 Heads)</span>
+                              <span className="muscle-callout-pill">Anterior Deltoid (Shoulder Stabilizer)</span>
+                              <span className="muscle-callout-pill">Transverse & Rectus Abdominis</span>
+                            </div>
+                            <p className="proto-analysis-text">
+                              <strong>Form Protocol:</strong> Hands shoulder-width beneath chest. Keep elbows pinned tight against your ribcage (pencil-tight tracking) throughout the descent. Drive through outer palms to explosive tricep lockout.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 4. Dedicated Wide-Grip Push-Up 3D Anatomical Diagram */}
+                      {selectedInfographicKey === 'wide-grip' && (
+                        <div className="proto-diagram-card">
+                          <div 
+                            className="proto-diagram-img-wrap"
+                            onClick={() => setDashboardLightbox({
+                              src: '/assets/diagrams/wide_grip_pushup_diagram.jpg',
+                              title: '3D Anatomical Wide-Grip Push-Up Diagram',
+                              subtitle: 'Wide Starting Position vs Floor-Level Deep Concentric Stretch'
+                            })}
+                            title="Click to zoom 3D Dummy anatomical diagram"
+                          >
+                            <img 
+                              src="/assets/diagrams/wide_grip_pushup_diagram.jpg" 
+                              alt="Wide-Grip Push-Up 3D Anatomical Diagram"
+                              className="proto-diagram-image" 
+                            />
+                            <div className="proto-zoom-overlay">
+                              <Maximize2 size={14} />
+                              <span>Click to Zoom 3D Diagram</span>
+                            </div>
+                          </div>
+
+                          <div className="proto-diagram-analysis">
+                            <div className="analysis-title-row">
+                              <h6>Wide-Grip Push-Up (Outer Chest Width)</h6>
+                              <button
+                                className="kpi-badge emerald cursor-pointer"
+                                onClick={() => setDashboardLightbox({
+                                  src: '/assets/covers/wide_grip_pushup_cover.jpg',
+                                  title: 'Wide-Grip Push-Up: Cinematic Gym Cover',
+                                  subtitle: 'Real human athlete with wide hand spacing and deep horizontal adduction'
+                                })}
+                                title="Click to view cinematic human cover"
+                              >
+                                View Real Human Cover
+                              </button>
+                            </div>
+                            <div className="muscles-pills-wrap">
+                              <span className="muscle-callout-pill">Outer Pectoralis Major (Sternal Head)</span>
+                              <span className="muscle-callout-pill">Anterior Deltoids</span>
+                              <span className="muscle-callout-pill">Serratus Anterior</span>
+                            </div>
+                            <p className="proto-analysis-text">
+                              <strong>Form Protocol:</strong> Place hands 1.5× shoulder width with fingers turned slightly outward. Descend until chest is level with hands for an intense pectoral stretch. Squeeze the pecs inward across the floor to press up.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 5. Dedicated Pike Push-Up 3D Anatomical Diagram */}
+                      {selectedInfographicKey === 'pike' && (
+                        <div className="proto-diagram-card">
+                          <div 
+                            className="proto-diagram-img-wrap"
+                            onClick={() => setDashboardLightbox({
+                              src: '/assets/diagrams/pike_pushup_diagram.jpg',
+                              title: '3D Anatomical Pike Push-Up Diagram',
+                              subtitle: 'Inverted V Starting Position vs Diagonal Head Descent — Red Deltoids'
+                            })}
+                            title="Click to zoom 3D Dummy anatomical diagram"
+                          >
+                            <img 
+                              src="/assets/diagrams/pike_pushup_diagram.jpg" 
+                              alt="Pike Push-Up 3D Anatomical Diagram"
+                              className="proto-diagram-image" 
+                            />
+                            <div className="proto-zoom-overlay">
+                              <Maximize2 size={14} />
+                              <span>Click to Zoom 3D Diagram</span>
+                            </div>
+                          </div>
+
+                          <div className="proto-diagram-analysis">
+                            <div className="analysis-title-row">
+                              <h6>Pike Push-Up (Overhead Shoulder Power)</h6>
+                              <button
+                                className="kpi-badge gold cursor-pointer"
+                                onClick={() => setDashboardLightbox({
+                                  src: '/assets/covers/pike_pushup_cover.jpg',
+                                  title: 'Pike Push-Up: Cinematic Gym Cover',
+                                  subtitle: 'Real human athlete executing inverted V pike push-up on mat'
+                                })}
+                                title="Click to view cinematic human cover"
+                              >
+                                View Real Human Cover
+                              </button>
+                            </div>
+                            <div className="muscles-pills-wrap">
+                              <span className="muscle-callout-pill">Anterior Deltoids (Overhead Press)</span>
+                              <span className="muscle-callout-pill">Clavicular Pectoralis (Upper Chest)</span>
+                              <span className="muscle-callout-pill">Upper Trapezius & Triceps</span>
+                            </div>
+                            <p className="proto-analysis-text">
+                              <strong>Form Protocol:</strong> Walk feet toward hands and hike hips high into an inverted V. Bend elbows to lower the crown of your head forward into a tripod base. Press back and up into your shoulders.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 6. Biomechanics Guide */}
+                      {selectedInfographicKey === 'biomechanics' && (
+                        <div className="proto-diagram-card">
+                          <div 
+                            className="proto-diagram-img-wrap"
+                            onClick={() => setDashboardLightbox({
+                              src: '/assets/aistudio/images_cb48d6e2.jpg',
+                              title: 'Push-Up Biomechanics & Kinetic Grips Guide',
+                              subtitle: 'Torque Vectors, Joint Angles & Muscle Focus'
+                            })}
+                            title="Click to zoom biomechanics guide"
+                          >
+                            <img 
+                              src="/assets/aistudio/images_cb48d6e2.jpg" 
+                              alt="Push-Up Biomechanics & Grips"
+                              className="proto-diagram-image" 
+                            />
+                            <div className="proto-zoom-overlay">
+                              <Maximize2 size={14} />
+                              <span>Click to Zoom Biomechanics</span>
+                            </div>
+                          </div>
+
+                          <div className="proto-diagram-analysis">
+                            <div className="analysis-title-row">
+                              <h6>Kinematic Angle & Grip Alignment</h6>
+                              <span className="kpi-badge blue">Force Vectors</span>
+                            </div>
+                            <p className="proto-analysis-text">
+                              Hand position dictates rotational torque at the glenohumeral joint. Tucking elbows at 45° optimizes pectoral recruitment while reducing anterior impingement risk.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="video-embed-box">
+                        <YouTubeEmbed 
+                          videoId={extractYouTubeId(activeVideoEx?.youtube_url)}
+                          title={activeVideoEx?.name || 'FitTrack Exercise Demo'}
+                        />
+                      </div>
+
+                      <div className="video-coaching-cues">
+                        <h5>Coaching Cues & Bio-Mechanics:</h5>
+                        <ul>
+                          <li>Maintain 3-second eccentric tempo for heightened mechanical tension.</li>
+                          <li>Brace core dynamically; avoid spinal hyperextension under top working sets.</li>
+                          <li>Full muscular contraction at peak concentric lockout without joint snapping.</li>
+                        </ul>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </section>
@@ -2286,6 +2705,27 @@ const Dashboard = () => {
                     </div>
 
                   </form>
+                </div>
+              </div>
+            )}
+
+            {/* Lightbox Modal for Dashboard Infographics */}
+            {dashboardLightbox && (
+              <div className="lightbox-backdrop" onClick={() => setDashboardLightbox(null)}>
+                <div className="lightbox-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="lightbox-topbar">
+                    <div className="lightbox-titles">
+                      <span className="lightbox-badge">High-Resolution Anatomical Diagram</span>
+                      <h3>{dashboardLightbox.title}</h3>
+                      {dashboardLightbox.subtitle && <p>{dashboardLightbox.subtitle}</p>}
+                    </div>
+                    <button className="lightbox-close-btn" onClick={() => setDashboardLightbox(null)} title="Close">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="lightbox-image-viewport">
+                    <img src={dashboardLightbox.src} alt={dashboardLightbox.title} className="lightbox-full-img" />
+                  </div>
                 </div>
               </div>
             )}

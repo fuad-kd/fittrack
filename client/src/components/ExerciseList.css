@@ -450,3 +450,269 @@
   font-size: 0.78rem;
   color: #64748b;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Protocol Anatomy & Variations Drawer Styles
+   ══════════════════════════════════════════════════════════════ */
+
+.anatomy-indicator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.btn-anatomy-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-anatomy-action:hover,
+.btn-anatomy-action.active {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #fef08a;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.anatomy-diagram-drawer {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: rgba(10, 14, 24, 0.95);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  animation: slideDown 0.25s ease;
+}
+
+.anatomy-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.drawer-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.drawer-header-title h5 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.15rem;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.drawer-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.drawer-tab-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drawer-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.drawer-tab-btn.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.anatomy-drawer-content {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .anatomy-drawer-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+.anatomy-image-wrap {
+  position: relative;
+  background: #05070c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.drawer-anatomy-img {
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.anatomy-image-wrap:hover .drawer-anatomy-img {
+  transform: scale(1.02);
+}
+
+.anatomy-zoom-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fbbf24;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.anatomy-text-col h4 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.25rem;
+  color: #f8fafc;
+  margin-bottom: 0.2rem;
+}
+
+.active-info-subtitle {
+  color: #fbbf24;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.active-info-desc {
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin-bottom: 0.85rem;
+}
+
+.drawer-variations-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.drawer-variation-item {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+}
+
+.v-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.2rem;
+}
+
+.v-num {
+  width: 18px;
+  height: 18px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.v-item-header strong {
+  font-size: 0.84rem;
+  color: #f8fafc;
+}
+
+.v-focus {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.15);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+.drawer-variation-item p {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.drawer-muscles-list {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+}
+
+.drawer-muscles-list .list-title {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.drawer-muscles-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.drawer-muscles-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+}
+

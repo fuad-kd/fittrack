@@ -9,22 +9,21 @@ import {
   Search,
   Dumbbell,
   Plus,
-  Check,
   Layers,
   Repeat,
   Scale,
-  Play,
   X,
   Sparkles,
-  ChevronRight,
   Filter,
   CheckCircle2,
   FolderPlus,
   Target,
   Zap,
   BookOpen,
-  PlayCircle,
-  Eye
+  Eye,
+  Maximize2,
+  Activity,
+  Shield
 } from 'lucide-react';
 
 // YouTube icon (SVG — lucide-react version in this project doesn't ship it)
@@ -54,24 +53,62 @@ function YouTubeEmbed({ videoId, title }) {
 }
 
 /* ─────────────────────────────────────────────
-   StepIllustration — AI-generated 2D image placeholder
-   (In production, replace src with actual AI-generated URL)
+   LightboxModal — Fullscreen diagram zoom
    ───────────────────────────────────────────── */
-function StepIllustration({ step, exerciseName }) {
-  const illustrations = [
+function LightboxModal({ imageSrc, title, subtitle, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="lightbox-backdrop" onClick={onClose}>
+      <div className="lightbox-modal-content" onClick={e => e.stopPropagation()}>
+        <div className="lightbox-topbar">
+          <div className="lightbox-titles">
+            <span className="lightbox-badge">High-Resolution Reference</span>
+            <h3>{title}</h3>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+          <button className="lightbox-close-btn" onClick={onClose} title="Close full view (Esc)">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="lightbox-image-viewport">
+          <img src={imageSrc} alt={title} className="lightbox-full-img" />
+        </div>
+        <div className="lightbox-footer-caption">
+          <span>Tip: Click outside or press Esc to return to protocol instructions</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   StepIllustration — Diagram / Image display with Zoom
+   ───────────────────────────────────────────── */
+function StepIllustration({ step, exerciseName, onZoom }) {
+  const fallbackIllustrations = [
     'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=400&q=80',
     'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=400&q=80',
     'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80',
     'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=400&q=80',
     'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=400&q=80',
   ];
-  const imgSrc = illustrations[(step.number - 1) % illustrations.length];
+  const imgSrc = step.illustration || fallbackIllustrations[(step.number - 1) % fallbackIllustrations.length];
+  const isCustom = !!step.illustration;
 
   return (
-    <div className="step-illustration-wrap">
-      <div className="step-illustration-badge">
+    <div 
+      className="step-illustration-wrap" 
+      onClick={() => onZoom && onZoom(imgSrc, `${exerciseName} — Step ${step.number}: ${step.title}`)}
+      title="Click to zoom in high-resolution"
+    >
+      <div className={`step-illustration-badge ${isCustom ? 'custom-anatomy' : ''}`}>
         <Sparkles size={10} />
-        <span>AI Illustration</span>
+        <span>{isCustom ? 'Anatomical Diagram' : 'Form Illustration'}</span>
       </div>
       <img
         src={imgSrc}
@@ -81,18 +118,23 @@ function StepIllustration({ step, exerciseName }) {
         onError={e => { e.target.style.display = 'none'; }}
       />
       <div className="step-illustration-overlay">
-        <span className="step-illustration-label">Step {step.number} Illustration</span>
-        <span className="step-illustration-sub">AI-Generated Instructional Diagram</span>
+        <div className="step-overlay-inner">
+          <Maximize2 size={16} className="zoom-hint-icon" />
+          <span className="step-illustration-label">Step {step.number} Diagram</span>
+          <span className="step-illustration-sub">Click to inspect full view</span>
+        </div>
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────
-   ExerciseDetailModal — step-by-step floating modal
+   ExerciseDetailModal — Form & Anatomy Visualizer
    ───────────────────────────────────────────── */
-function ExerciseDetailModal({ exercise, onClose }) {
+function ExerciseDetailModal({ exercise, initialTab = 'steps', onClose }) {
+  const [modalTab, setModalTab] = useState(initialTab); // 'steps' | infographic.id
   const [activeStep, setActiveStep] = useState(1);
+  const [lightboxData, setLightboxData] = useState(null);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -102,6 +144,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
 
   if (!exercise) return null;
   const steps = exercise.steps || [];
+  const infographics = exercise.infographics || [];
 
   const levelClass =
     exercise.level === 'Beginner'
@@ -111,134 +154,273 @@ function ExerciseDetailModal({ exercise, onClose }) {
       : 'badge-high';
 
   const currentStep = steps.find(s => s.number === activeStep) || steps[0];
+  const currentInfographic = infographics.find(info => info.id === modalTab);
 
   return (
-    <div className="detail-modal-backdrop" onClick={onClose}>
-      <div className="detail-modal-container" onClick={e => e.stopPropagation()}>
+    <>
+      <div className="detail-modal-backdrop" onClick={onClose}>
+        <div className="detail-modal-container" onClick={e => e.stopPropagation()}>
 
-        {/* ── Modal Header ── */}
-        <div className="detail-modal-header">
-          <div className="detail-modal-thumb">
-            <img src={exercise.image} alt={exercise.name} />
-          </div>
-          <div className="detail-modal-meta">
-            <div className="detail-modal-tags">
-              <span className={`level-chip ${levelClass}`}>{exercise.levelLabel}</span>
-              <span className="body-part-chip">{exercise.bodyPart}</span>
+          {/* ── Modal Header ── */}
+          <div className="detail-modal-header">
+            <div 
+              className="detail-modal-thumb clickable" 
+              onClick={() => setLightboxData({ src: exercise.image, title: exercise.name, subtitle: exercise.targetMuscle })}
+              title="Click to zoom cover diagram"
+            >
+              <img src={exercise.image} alt={exercise.name} />
+              <div className="thumb-zoom-badge">
+                <Maximize2 size={11} />
+              </div>
             </div>
-            <h2 className="detail-modal-title">{exercise.name}</h2>
-            <p className="detail-modal-target">
-              <Target size={13} />
-              Target Muscle: <strong>{exercise.targetMuscle || exercise.bodyPart}</strong>
-            </p>
-            <p className="detail-modal-equip">
-              <Dumbbell size={13} />
-              {exercise.equipment}
-            </p>
+            <div className="detail-modal-meta">
+              <div className="detail-modal-tags">
+                <span className={`level-chip ${levelClass}`}>{exercise.levelLabel}</span>
+                <span className="body-part-chip">{exercise.bodyPart}</span>
+                {infographics.length > 0 && (
+                  <span className="infographics-count-chip">
+                    <Sparkles size={11} /> {infographics.length} Visual Infographics
+                  </span>
+                )}
+              </div>
+              <h2 className="detail-modal-title">{exercise.name}</h2>
+              <p className="detail-modal-target">
+                <Target size={13} />
+                Target Muscle: <strong>{exercise.targetMuscle || exercise.bodyPart}</strong>
+              </p>
+              <p className="detail-modal-equip">
+                <Dumbbell size={13} />
+                {exercise.equipment}
+              </p>
+            </div>
+            <button className="detail-modal-close" onClick={onClose} title="Close">
+              <X size={20} />
+            </button>
           </div>
-          <button className="detail-modal-close" onClick={onClose} title="Close">
-            <X size={20} />
-          </button>
-        </div>
 
-        {/* ── Step Navigator Tabs ── */}
-        <div className="detail-step-tabs-bar">
-          <span className="step-tabs-label">
-            <BookOpen size={13} />
-            Form Breakdown
-          </span>
-          <div className="step-tabs-pills">
-            {steps.map(s => (
+          {/* ── Navigation Tabs (Form Steps vs Anatomical Infographics) ── */}
+          <div className="detail-nav-sections-bar">
+            <button
+              className={`nav-section-btn ${modalTab === 'steps' ? 'active' : ''}`}
+              onClick={() => setModalTab('steps')}
+            >
+              <BookOpen size={14} />
+              <span>Step-by-Step Technique ({steps.length})</span>
+            </button>
+
+            {infographics.map(info => (
               <button
-                key={s.number}
-                className={`step-tab-pill ${activeStep === s.number ? 'active' : ''}`}
-                onClick={() => setActiveStep(s.number)}
+                key={info.id}
+                className={`nav-section-btn ${modalTab === info.id ? 'active' : ''}`}
+                onClick={() => setModalTab(info.id)}
               >
-                {s.number}
+                <Activity size={14} />
+                <span>{info.badge || info.title}</span>
               </button>
             ))}
           </div>
-        </div>
 
-        {/* ── Active Step Content ── */}
-        {currentStep && (
-          <div className="detail-step-body">
-            {/* Left: Illustration */}
-            <div className="step-illustration-col">
-              <StepIllustration step={currentStep} exerciseName={exercise.name} />
-            </div>
-
-            {/* Right: Instructions */}
-            <div className="step-instruction-col">
-              <div className="step-number-badge">
-                <span>STEP {currentStep.number}</span>
-                <span className="step-of">/ {steps.length}</span>
+          {/* ── MODE 1: STEP-BY-STEP BREAKDOWN ── */}
+          {modalTab === 'steps' && (
+            <>
+              {/* Step Navigator Tabs */}
+              <div className="detail-step-tabs-bar">
+                <span className="step-tabs-label">
+                  <BookOpen size={13} />
+                  Phased Movement:
+                </span>
+                <div className="step-tabs-pills">
+                  {steps.map(s => (
+                    <button
+                      key={s.number}
+                      className={`step-tab-pill ${activeStep === s.number ? 'active' : ''}`}
+                      onClick={() => setActiveStep(s.number)}
+                    >
+                      Step {s.number}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <h3 className="step-title">{currentStep.title}</h3>
-              <p className="step-instruction-text">{currentStep.instruction}</p>
 
-              {currentStep.cue && (
-                <div className="step-coaching-cue">
-                  <Zap size={14} className="cue-icon" />
-                  <span>{currentStep.cue}</span>
+              {/* Active Step Content */}
+              {currentStep && (
+                <div className="detail-step-body">
+                  {/* Left: Illustration */}
+                  <div className="step-illustration-col">
+                    <StepIllustration 
+                      step={currentStep} 
+                      exerciseName={exercise.name} 
+                      onZoom={(src, title) => setLightboxData({ src, title, subtitle: currentStep.title })}
+                    />
+                  </div>
+
+                  {/* Right: Instructions */}
+                  <div className="step-instruction-col">
+                    <div className="step-number-badge">
+                      <span>PHASE {currentStep.number}</span>
+                      <span className="step-of">/ {steps.length}</span>
+                    </div>
+                    <h3 className="step-title">{currentStep.title}</h3>
+                    <p className="step-instruction-text">{currentStep.instruction}</p>
+
+                    {currentStep.cue && (
+                      <div className="step-coaching-cue">
+                        <Zap size={14} className="cue-icon" />
+                        <span>{currentStep.cue}</span>
+                      </div>
+                    )}
+
+                    {/* Step Navigation Arrows */}
+                    <div className="step-nav-arrows">
+                      <button
+                        className="step-nav-btn"
+                        onClick={() => setActiveStep(s => Math.max(1, s - 1))}
+                        disabled={activeStep === 1}
+                      >
+                        ← Previous
+                      </button>
+                      <span className="step-progress-dots">
+                        {steps.map(s => (
+                          <span
+                            key={s.number}
+                            className={`step-dot ${activeStep === s.number ? 'active' : activeStep > s.number ? 'done' : ''}`}
+                            onClick={() => setActiveStep(s.number)}
+                          />
+                        ))}
+                      </span>
+                      <button
+                        className="step-nav-btn primary"
+                        onClick={() => setActiveStep(s => Math.min(steps.length, s + 1))}
+                        disabled={activeStep === steps.length}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
+            </>
+          )}
 
-              {/* Step Navigation Arrows */}
-              <div className="step-nav-arrows">
-                <button
-                  className="step-nav-btn"
-                  onClick={() => setActiveStep(s => Math.max(1, s - 1))}
-                  disabled={activeStep === 1}
+          {/* ── MODE 2: INFOGRAPHIC ANATOMY & VARIATIONS VIEW ── */}
+          {modalTab !== 'steps' && currentInfographic && (
+            <div className="infographic-panel-body">
+              <div className="infographic-preview-col">
+                <div 
+                  className="infographic-hero-container"
+                  onClick={() => setLightboxData({ 
+                    src: currentInfographic.image, 
+                    title: currentInfographic.title, 
+                    subtitle: currentInfographic.subtitle 
+                  })}
+                  title="Click to view full-resolution poster"
                 >
-                  ← Previous
-                </button>
-                <span className="step-progress-dots">
-                  {steps.map(s => (
-                    <span
-                      key={s.number}
-                      className={`step-dot ${activeStep === s.number ? 'active' : activeStep > s.number ? 'done' : ''}`}
-                      onClick={() => setActiveStep(s.number)}
-                    />
-                  ))}
-                </span>
-                <button
-                  className="step-nav-btn primary"
-                  onClick={() => setActiveStep(s => Math.min(steps.length, s + 1))}
-                  disabled={activeStep === steps.length}
-                >
-                  Next →
-                </button>
+                  <img 
+                    src={currentInfographic.image} 
+                    alt={currentInfographic.title} 
+                    className="infographic-full-view" 
+                  />
+                  <div className="infographic-zoom-btn">
+                    <Maximize2 size={15} />
+                    <span>Click to Zoom High-Res</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="infographic-details-col">
+                <div className="infographic-header-card">
+                  <span className="info-badge-tag">{currentInfographic.badge}</span>
+                  <h3>{currentInfographic.title}</h3>
+                  <p className="info-subtitle">{currentInfographic.subtitle}</p>
+                  <p className="info-summary-text">{currentInfographic.summary}</p>
+                </div>
+
+                {/* If this infographic has variations breakdown (like Push-Up Mastery) */}
+                {currentInfographic.variations && (
+                  <div className="variations-guide-list">
+                    <h4>Variations & Targeted Muscle Groups:</h4>
+                    <div className="variations-grid">
+                      {currentInfographic.variations.map((v, i) => (
+                        <div key={i} className="variation-card-box">
+                          <div className="var-header">
+                            <span className="var-index">{v.number || i + 1}</span>
+                            <h5>{v.name}</h5>
+                            <span className="var-focus-chip">{v.focus}</span>
+                          </div>
+                          <p className="var-cue-text">{v.cues}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* If this infographic has target muscles list (like Anatomical Breakdown) */}
+                {currentInfographic.targetMuscles && (
+                  <div className="anatomy-muscles-card">
+                    <h4>Primary Anatomical Callouts:</h4>
+                    <ul className="anatomy-bullet-list">
+                      {currentInfographic.targetMuscles.map((muscle, idx) => (
+                        <li key={idx}>
+                          <CheckCircle2 size={14} className="check-bullet" />
+                          <span>{muscle}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="infographic-coaching-callout">
+                  <Zap size={15} className="text-amber-400" />
+                  <div>
+                    <strong>Biomechanical Rule of Thumb:</strong>
+                    <p>Keep the shoulder blades protracted at top lockout and depressed down away from ears to protect the rotator cuff.</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── Modal Footer ── */}
-        <div className="detail-modal-footer">
-          <div className="detail-footer-metrics">
-            <span className="footer-metric">
-              <Layers size={13} />
-              {exercise.defaultSets} Sets
-            </span>
-            <span className="footer-metric">
-              <Repeat size={13} />
-              {exercise.defaultReps} Reps
-            </span>
-            {exercise.defaultWeight > 0 && (
+          {/* ── Modal Footer ── */}
+          <div className="detail-modal-footer">
+            <div className="detail-footer-metrics">
               <span className="footer-metric">
-                <Scale size={13} />
-                {exercise.defaultWeight} kg
+                <Layers size={13} />
+                {exercise.defaultSets} Sets
               </span>
-            )}
+              <span className="footer-metric">
+                <Repeat size={13} />
+                {exercise.defaultReps} Reps
+              </span>
+              {exercise.defaultWeight > 0 ? (
+                <span className="footer-metric">
+                  <Scale size={13} />
+                  {exercise.defaultWeight} kg
+                </span>
+              ) : (
+                <span className="footer-metric bodyweight">
+                  <Shield size={13} />
+                  Bodyweight Protocol
+                </span>
+              )}
+            </div>
+            <div className="detail-footer-tip">
+              <span>💡 Pro Tip: {exercise.tip}</span>
+            </div>
           </div>
-          <div className="detail-footer-tip">
-            <span>💡 Pro Tip: {exercise.tip}</span>
-          </div>
-        </div>
 
+        </div>
       </div>
-    </div>
+
+      {/* Lightbox Modal for zooming any image */}
+      {lightboxData && (
+        <LightboxModal 
+          imageSrc={lightboxData.src} 
+          title={lightboxData.title} 
+          subtitle={lightboxData.subtitle} 
+          onClose={() => setLightboxData(null)} 
+        />
+      )}
+    </>
   );
 }
 
@@ -574,11 +756,17 @@ export default function ExerciseBank({ plans, onExerciseAdded, onQuickCreatePlan
                 <div className="image-overlay-chips">
                   <span className={`level-chip ${levelClass}`}>{ex.levelLabel}</span>
                   <span className="body-part-chip">{ex.bodyPart}</span>
+                  {ex.infographics?.length > 0 && (
+                    <span className="infographic-pill-chip">
+                      <Sparkles size={10} />
+                      <span>Anatomy & Variations</span>
+                    </span>
+                  )}
                 </div>
                 {/* Click hint overlay */}
                 <div className="card-click-hint">
                   <Eye size={16} />
-                  <span>View Guide</span>
+                  <span>View Guide & Anatomy</span>
                 </div>
               </div>
 
@@ -605,6 +793,18 @@ export default function ExerciseBank({ plans, onExerciseAdded, onQuickCreatePlan
                 </div>
 
                 <div className="card-action-footer" onClick={e => e.stopPropagation()}>
+                  {/* Anatomy / Infographic Guide Button */}
+                  {ex.infographics?.length > 0 && (
+                    <button
+                      className="btn-infographic-guide"
+                      onClick={e => { e.stopPropagation(); setDetailExercise(ex); }}
+                      title="View anatomical breakdown and 4 variations guide"
+                    >
+                      <Activity size={13} />
+                      <span>Anatomy ({ex.infographics.length})</span>
+                    </button>
+                  )}
+
                   {/* Watch Video Button */}
                   {(ex.youtubeId || ex.youtubeUrl) && (
                     <button
