@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import './VerifyEmail.css';
 
@@ -10,19 +10,19 @@ const VerifyEmail = () => {
   const { refreshUser, isAuthenticated } = useAuth();
 
   const initialEmail = location.state?.email || '';
-  const initialDemoCode = location.state?.demoVerificationCode || '';
-  const isDemoMode = !isSupabaseConfigured;
+  const justSignedUp = Boolean(location.state?.justSignedUp);
 
   const [email, setEmail]               = useState(initialEmail);
-  const [otpCode, setOtpCode]           = useState('');
-  const [demoCode, setDemoCode]         = useState(initialDemoCode);
   const [resending, setResending]       = useState(false);
   const [resent, setResent]             = useState(false);
-  const [verifying, setVerifying]       = useState(false);
   const [checkingLink, setCheckingLink] = useState(false);
   const [cooldown, setCooldown]         = useState(0);
   const [error, setError]               = useState('');
-  const [successMsg, setSuccessMsg]     = useState('');
+  const [successMsg, setSuccessMsg]     = useState(
+    justSignedUp
+      ? 'Account created! Please check your email inbox (and spam or junk folder) for the verification link from FitTrack.'
+      : ''
+  );
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -31,17 +31,15 @@ const VerifyEmail = () => {
     };
   }, []);
 
-  // If user is already verified, redirect to dashboard
+  // Redirect automatically once email confirmation completes
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
-  // Handle incoming Supabase email confirmation link (?code=... or ?token_hash=... or #access_token=...)
+  // Handle incoming Supabase email confirmation callbacks if redirected here
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
-
     const handleEmailCallback = async () => {
       const searchParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -79,7 +77,7 @@ const VerifyEmail = () => {
           setSuccessMsg('Email verified successfully! Redirecting to your dashboard...');
           setTimeout(() => navigate('/dashboard', { replace: true }), 800);
         } else {
-          setError('Verification link could not be confirmed. Please request a new email.');
+          setError('Verification link could not be confirmed. Please request a new confirmation email.');
         }
       } catch (err) {
         setError(err.message || 'Verification link is invalid or expired. Please request a new email.');
@@ -105,51 +103,9 @@ const VerifyEmail = () => {
     }, 1000);
   };
 
-  const handleVerifyCode = async (e) => {
-    e.preventDefault();
-    const targetEmail = email.trim();
-    const cleanCode = otpCode.trim();
-
-    if (!targetEmail) {
-      setError('Please enter your registered email address.');
-      return;
-    }
-    if (!/^\d{6}$/.test(cleanCode)) {
-      setError('Please enter the valid 6-digit verification code.');
-      return;
-    }
-
-    setVerifying(true);
-    setError('');
-    setSuccessMsg('');
-
-    try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        email: targetEmail,
-        token: cleanCode,
-        type: 'signup',
-      });
-
-      if (verifyError) throw verifyError;
-
-      const verifiedUser = data?.user || (await refreshUser());
-      if (!verifiedUser?.email_confirmed_at) {
-        throw new Error('Verification was not completed. Please try again.');
-      }
-
-      setSuccessMsg('Email verified! Taking you to your dashboard...');
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      setError(err.message || 'Invalid or expired verification code.');
-    } finally {
-      setVerifying(false);
-    }
-  };
-
   const handleCheckStatus = async () => {
     setCheckingLink(true);
     setError('');
-    setSuccessMsg('');
 
     try {
       const latestUser = await refreshUser();
@@ -157,7 +113,9 @@ const VerifyEmail = () => {
         setSuccessMsg('Email verified! Redirecting to dashboard...');
         navigate('/dashboard', { replace: true });
       } else {
-        setError('Your email is not verified yet. Please click the confirmation link sent to your inbox or enter your 6-digit code.');
+        setError(
+          'Your email is not verified yet. Please click the confirmation link sent to your inbox (check spam/junk too) and then sign in.'
+        );
       }
     } catch (err) {
       setError(err.message || 'Could not check verification status.');
@@ -176,25 +134,23 @@ const VerifyEmail = () => {
 
     setResending(true);
     setError('');
-    setSuccessMsg('');
     setResent(false);
 
     try {
-      const { data, error: resendError } = await supabase.auth.resend({
+      const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: targetEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/verify-email`,
+          emailRedirectTo: window.location.origin,
         },
       });
 
       if (resendError) throw resendError;
 
-      if (isDemoMode && data?.verificationCode) {
-        setDemoCode(data.verificationCode);
-      }
-
       setResent(true);
+      setSuccessMsg(
+        `Verification link resent to ${targetEmail}! Please check your inbox and spam folder.`
+      );
       startCooldown();
     } catch (err) {
       setError(err.message || 'Could not resend verification email.');
@@ -224,7 +180,7 @@ const VerifyEmail = () => {
               Email.
             </h1>
             <p className="hero-sub">
-              Verify your email address to activate your account and unlock workout plans, logs, and progress tracking.
+              Confirm your email address via the link from FitTrack to activate your account and unlock your dashboard.
             </p>
           </div>
 
@@ -254,9 +210,9 @@ const VerifyEmail = () => {
             <span>FitTrack</span>
           </div>
 
-          <p className="form-eyebrow">Account Verification Required</p>
+          <p className="form-eyebrow">Email Confirmation</p>
           <h2 className="form-title">
-            Verify<br />Your Email
+            Check<br />Your Inbox
           </h2>
           <div className="gold-rule" />
 
@@ -265,11 +221,7 @@ const VerifyEmail = () => {
             <div className="verify-email-box">
               <span className="verify-email-icon">📧</span>
               <div>
-                <p className="verify-sent-text">
-                  {isDemoMode
-                    ? 'Verification required for'
-                    : 'We sent a verification link / code to'}
-                </p>
+                <p className="verify-sent-text">We sent a verification link from FitTrack to</p>
                 <p className="verify-email-addr">{email}</p>
               </div>
             </div>
@@ -288,87 +240,24 @@ const VerifyEmail = () => {
             </div>
           )}
 
-          {isDemoMode ? (
-            <div className="demo-verify-notice">
-              <p className="demo-verify-title">Local Verification Code Required</p>
-              <p className="demo-verify-desc">
-                No Supabase SMTP project is connected in <code>.env</code>, so external inbox delivery is unavailable.
-                {demoCode ? (
-                  <>
-                    {' '}Enter your 6-digit sandbox verification code <strong className="demo-otp-badge">{demoCode}</strong> below to confirm your email.
-                  </>
-                ) : (
-                  ' Click "Resend Code" below to generate a 6-digit verification code and enter it to verify.'
-                )}
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="verify-instruction">
-                Click the confirmation link in your email <strong>or</strong> enter the 6-digit verification code sent to your inbox. You cannot access the dashboard until verification is complete.
-              </p>
-              <p className="verify-spam-note">
-                Don't see it? Check your spam or junk folder.
-              </p>
-            </>
-          )}
+          <p className="verify-instruction">
+            Open your email inbox and click the verification link from <strong>FitTrack</strong> to confirm your account.
+          </p>
+          <p className="verify-spam-note">
+            Don't see the email? Check your spam, promotions, or junk folder.
+          </p>
 
           {error && <div className="error-banner" role="alert">⚠️ {error}</div>}
-          {successMsg && <div className="success-banner" role="status">✅ {successMsg}</div>}
-          {resent && !successMsg && (
+          {(successMsg || resent) && !error && (
             <div className="success-banner" role="status">
-              {isDemoMode
-                ? '✅ New 6-digit verification code generated!'
-                : '✅ Confirmation email resent! Please check your inbox.'}
+              ✅ {successMsg || 'Verification email resent! Please check your inbox and spam folder.'}
             </div>
           )}
 
-          {/* 6-Digit Code Verification Form */}
-          <form className="verify-otp-form" onSubmit={handleVerifyCode}>
-            <div className="verify-field">
-              <label htmlFor="otp-code-input">6-Digit Verification Code</label>
-              <input
-                id="otp-code-input"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                className="verify-otp-input"
-                placeholder="000000"
-                value={otpCode}
-                onChange={(e) => {
-                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setOtpCode(digitsOnly);
-                  setError('');
-                }}
-                autoComplete="one-time-code"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn-submit"
-              disabled={verifying || checkingLink || otpCode.trim().length !== 6}
-            >
-              {verifying ? 'Verifying Code…' : 'Verify Code & Continue'}
-            </button>
-          </form>
-
           <div className="verify-actions">
-            {!isDemoMode && (
-              <button
-                type="button"
-                className="btn-secondary-verify"
-                onClick={handleCheckStatus}
-                disabled={checkingLink || verifying}
-              >
-                {checkingLink ? 'Checking Status…' : "I've Clicked the Email Link"}
-              </button>
-            )}
-
             <button
               type="button"
-              className="btn-secondary-verify"
+              className="btn-submit"
               onClick={handleResend}
               disabled={resending || cooldown > 0}
             >
@@ -376,9 +265,16 @@ const VerifyEmail = () => {
                 ? 'Sending…'
                 : cooldown > 0
                 ? `Resend in ${cooldown}s`
-                : isDemoMode
-                ? 'Resend Verification Code'
                 : 'Resend Verification Email'}
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary-verify"
+              onClick={handleCheckStatus}
+              disabled={checkingLink}
+            >
+              {checkingLink ? 'Checking Verification…' : "I've Clicked the Verification Link"}
             </button>
 
             <div className="form-footer">

@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
   supabaseAnonKey &&
-  typeof supabaseUrl === 'string' &&
   supabaseUrl.startsWith('http') &&
   supabaseUrl !== 'https://your-project.supabase.co' &&
   !supabaseUrl.includes('placeholder')
@@ -18,7 +17,7 @@ if (isSupabaseConfigured) {
   try {
     clientInstance = createClient(supabaseUrl, supabaseAnonKey);
   } catch (err) {
-    console.warn('[FitTrack] Failed to initialize real Supabase client, falling back to mock:', err);
+    console.warn('[FitTrack] Failed to initialize real Supabase client:', err);
   }
 }
 
@@ -1011,18 +1010,17 @@ if (!clientInstance) {
   clientInstance = {
     auth: {
       getSession: async () => {
-        return { data: getSessionData(), error: null };
+        return { data: { session: null }, error: null };
       },
 
       getUser: async () => {
-        return { data: { user: currentUser }, error: null };
+        return { data: { user: null }, error: null };
       },
 
       onAuthStateChange: (callback) => {
         authListeners.add(callback);
-        // Call immediately with initial session
         setTimeout(() => {
-          callback('INITIAL_SESSION', getSessionData().session);
+          callback('INITIAL_SESSION', null);
         }, 10);
 
         return {
@@ -1036,137 +1034,34 @@ if (!clientInstance) {
         };
       },
 
-      signInWithPassword: async ({ email, password }) => {
-        const profiles = loadStorage('profiles', initialProfiles);
-        const users = loadStorage('registered_users', [initialUser]);
-
-        const trimmed = (email || '').trim().toLowerCase();
-        // Match by email or username
-        let user = users.find((u) => u.email.toLowerCase() === trimmed);
-        if (!user) {
-          const profile = profiles.find((p) => p.username.toLowerCase() === trimmed);
-          if (profile) {
-            user = users.find((u) => u.id === profile.id);
-          }
-        }
-
-        if (!user) {
-          if (trimmed === 'alex@fittrack.com' || trimmed === 'alex_vance') {
-            user = initialUser;
-          } else {
-            return { data: { user: null, session: null }, error: { message: 'Invalid login credentials.' } };
-          }
-        } else if (user.password && password && user.password !== password) {
-          return { data: { user: null, session: null }, error: { message: 'Invalid login credentials.' } };
-        }
-
-        if (!user.email_confirmed_at) {
-          return { data: { user: null, session: null }, error: { message: 'Email not confirmed' } };
-        }
-
-        currentUser = user;
-        saveStorage('auth_user', currentUser);
-        const session = getSessionData().session;
-        notifyAuthChange('SIGNED_IN', session);
-
-        return { data: { user, session }, error: null };
-      },
-
-      signUp: async ({ email, password, options }) => {
-        const trimmedEmail = (email || '').trim().toLowerCase();
-        const users = loadStorage('registered_users', [initialUser]);
-        const existingUser = users.find((u) => u.email.toLowerCase() === trimmedEmail);
-
-        if (existingUser) {
-          return {
-            data: { user: null, session: null },
-            error: { message: 'An account with this email already exists. Please sign in.' },
-          };
-        }
-
-        const newId = `user_${Date.now()}`;
-        const username = options?.data?.username || trimmedEmail.split('@')[0];
-        const phone = options?.data?.phone || null;
-        const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
-
-        const newUser = {
-          id: newId,
-          email: email.trim(),
-          password,
-          email_confirmed_at: null,
-          verification_code: verificationCode,
-          verification_expires_at: Date.now() + 15 * 60 * 1000,
-          user_metadata: {
-            username,
-            phone,
+      signInWithPassword: async () => {
+        return {
+          data: { user: null, session: null },
+          error: {
+            message:
+              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
           },
         };
-
-        users.push(newUser);
-        saveStorage('registered_users', users);
-
-        const profiles = loadStorage('profiles', initialProfiles);
-        profiles.push({
-          id: newId,
-          username,
-          phone,
-          avatar_url: null,
-          created_at: new Date().toISOString(),
-        });
-        saveStorage('profiles', profiles);
-
-        return { data: { user: newUser, session: null, verificationCode }, error: null };
       },
 
-      verifyOtp: async ({ email, token }) => {
-        const trimmedEmail = (email || '').trim().toLowerCase();
-        const cleanToken = (token || '').trim();
-        if (!trimmedEmail || !cleanToken) {
-          return {
-            data: { user: null, session: null },
-            error: { message: 'Please enter both your email and the 6-digit verification code.' },
-          };
-        }
-
-        const users = loadStorage('registered_users', [initialUser]);
-        const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
-        if (idx < 0) {
-          return {
-            data: { user: null, session: null },
-            error: { message: 'No pending registration found for this email.' },
-          };
-        }
-
-        const targetUser = users[idx];
-        if (!targetUser.verification_code || targetUser.verification_code !== cleanToken) {
-          return {
-            data: { user: null, session: null },
-            error: { message: 'Invalid verification code. Please check the code and try again.' },
-          };
-        }
-
-        if (targetUser.verification_expires_at && Date.now() > targetUser.verification_expires_at) {
-          return {
-            data: { user: null, session: null },
-            error: { message: 'Verification code has expired. Please resend a new code.' },
-          };
-        }
-
-        const verifiedUser = {
-          ...targetUser,
-          email_confirmed_at: new Date().toISOString(),
-          verification_code: null,
-          verification_expires_at: null,
+      signUp: async () => {
+        return {
+          data: { user: null, session: null },
+          error: {
+            message:
+              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+          },
         };
-        users[idx] = verifiedUser;
-        saveStorage('registered_users', users);
+      },
 
-        currentUser = verifiedUser;
-        saveStorage('auth_user', currentUser);
-        const session = getSessionData().session;
-        notifyAuthChange('SIGNED_IN', session);
-
-        return { data: { user: verifiedUser, session }, error: null };
+      verifyOtp: async () => {
+        return {
+          data: { user: null, session: null },
+          error: {
+            message:
+              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+          },
+        };
       },
 
       signOut: async () => {
@@ -1176,21 +1071,14 @@ if (!clientInstance) {
         return { error: null };
       },
 
-      resend: async ({ email } = {}) => {
-        const trimmedEmail = (email || '').trim().toLowerCase();
-        const users = loadStorage('registered_users', [initialUser]);
-        const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
-        if (idx < 0) {
-          return { data: null, error: { message: 'Account not found for this email.' } };
-        }
-        const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
-        users[idx] = {
-          ...users[idx],
-          verification_code: verificationCode,
-          verification_expires_at: Date.now() + 15 * 60 * 1000,
+      resend: async () => {
+        return {
+          data: null,
+          error: {
+            message:
+              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+          },
         };
-        saveStorage('registered_users', users);
-        return { data: { verificationCode }, error: null };
       },
     },
 

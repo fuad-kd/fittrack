@@ -11,7 +11,12 @@ const Login = () => {
   const [password, setPassword]     = useState('');
   const [remember, setRemember]     = useState(false);
   const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState('');
+  const [error, setError]           = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const urlError = searchParams.get('error_description') || hashParams.get('error_description');
+    return urlError ? decodeURIComponent(urlError.replace(/\+/g, ' ')) : '';
+  });
   const [showPass, setShowPass]     = useState(false);
 
   const passwordCheck = evaluatePasswordRules(password);
@@ -194,33 +199,6 @@ const Login = () => {
                   <span className="dot" /><span className="dot" /><span className="dot" />
                 </span>
               ) : 'Sign In'}
-            </button>
-
-            <button
-              type="button"
-              className="btn-demo-quick"
-              onClick={() => {
-                setIdentifier('alex@fittrack.com');
-                setPassword('DemoAthlete123!');
-              }}
-              style={{
-                width: '100%',
-                marginTop: '0.75rem',
-                padding: '0.65rem',
-                background: 'rgba(200, 168, 122, 0.08)',
-                border: '1px dashed rgba(200, 168, 122, 0.3)',
-                borderRadius: '8px',
-                color: '#E8D5B0',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.4rem',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <span>⚡ One-Click Demo Athlete Credentials</span>
             </button>
           </form>
 

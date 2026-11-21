@@ -46,6 +46,28 @@ const PublicRoute = ({ children }) => {
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 };
 
+// Root route – waits for Supabase auth callback params (?code=... / #access_token=...) before redirecting
+const RootRedirect = () => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return (
+    <Navigate
+      to={{
+        pathname: '/login',
+        search: window.location.search,
+        hash: window.location.hash,
+      }}
+      replace
+    />
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -60,7 +82,7 @@ function App() {
           <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
           {/* Default redirect */}
-          <Route path="/"             element={<Navigate to="/login" replace />} />
+          <Route path="/"             element={<RootRedirect />} />
           <Route path="*"             element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

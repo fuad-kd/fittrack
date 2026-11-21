@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { evaluatePasswordRules } from '../utils/passwordRules';
 import './Login.css';
 import './Register.css';
@@ -130,7 +130,7 @@ const Register = () => {
             username: trimmedUsername,
             phone: form.phone.trim() || null,
           },
-          emailRedirectTo: `${window.location.origin}/verify-email`,
+          emailRedirectTo: window.location.origin,
         },
       });
 
@@ -149,12 +149,11 @@ const Register = () => {
         await supabase.auth.signOut();
       }
 
-      // 2. Navigate to verification screen
+      // 2. Navigate to verification confirmation screen
       navigate('/verify-email', {
         state: {
           email: form.email.trim(),
-          isDemoMode: !isSupabaseConfigured,
-          demoVerificationCode: authData?.verificationCode || null,
+          justSignedUp: true,
         },
       });
     } catch (err) {
