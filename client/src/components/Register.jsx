@@ -130,21 +130,32 @@ const Register = () => {
             username: trimmedUsername,
             phone: form.phone.trim() || null,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/verify-email`,
         },
       });
 
       if (authError) throw authError;
 
-      const userId = authData.user?.id;
-      if (!userId) throw new Error('Failed to create account. Please try again.');
+      const createdUser = authData?.user;
+      if (!createdUser?.id) throw new Error('Failed to create account. Please try again.');
 
-      // The profiles table insert is now handled securely by a database trigger 
-      // (handle_new_user) on the Supabase backend to avoid RLS violations.
+      // Supabase returns empty identities when email already exists and confirmation is enabled
+      if (Array.isArray(createdUser.identities) && createdUser.identities.length === 0) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      }
+
+      // Never allow an unverified user session into the dashboard
+      if (authData?.session && !createdUser.email_confirmed_at) {
+        await supabase.auth.signOut();
+      }
 
       // 2. Navigate to verification screen
       navigate('/verify-email', {
-        state: { email: form.email.trim(), isDemoMode: !isSupabaseConfigured },
+        state: {
+          email: form.email.trim(),
+          isDemoMode: !isSupabaseConfigured,
+          demoVerificationCode: authData?.verificationCode || null,
+        },
       });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');

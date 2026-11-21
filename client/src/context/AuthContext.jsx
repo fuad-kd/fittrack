@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({});
@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch the extra profile info (username, phone) from the profiles table
-  const fetchProfile = async (userId) => {
+  // Fetch the extra profile info (username, phone, avatar_url) from the profiles table
+  const fetchProfile = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -20,7 +20,32 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.warn('Could not fetch user profile:', err);
     }
-  };
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      if (typeof supabase.auth.getUser === 'function') {
+        const { data, error } = await supabase.auth.getUser();
+        if (!error && data?.user) {
+          setUser(data.user);
+          if (data.user.email_confirmed_at) {
+            await fetchProfile(data.user.id);
+          }
+          return data.user;
+        }
+      }
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser?.email_confirmed_at) {
+        await fetchProfile(sessionUser.id);
+      }
+      return sessionUser;
+    } catch (err) {
+      console.warn('Could not refresh auth user:', err);
+      return null;
+    }
+  }, [fetchProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -29,8 +54,11 @@ export const AuthProvider = ({ children }) => {
     supabase.auth.getSession()
       .then(({ data: { session } = {} }) => {
         if (!isMounted) return;
-        setUser(session?.user ?? null);
-        if (session?.user) fetchProfile(session.user.id);
+        const sessionUser = session?.user ?? null;
+        setUser(sessionUser);
+        if (sessionUser?.email_confirmed_at) {
+          fetchProfile(sessionUser.id);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -42,9 +70,10 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } = {} } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!isMounted) return;
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        const sessionUser = session?.user ?? null;
+        setUser(sessionUser);
+        if (sessionUser?.email_confirmed_at) {
+          await fetchProfile(sessionUser.id);
         } else {
           setProfile(null);
         }
@@ -56,7 +85,7 @@ export const AuthProvider = ({ children }) => {
       isMounted = false;
       if (subscription?.unsubscribe) subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -64,11 +93,14 @@ export const AuthProvider = ({ children }) => {
     setProfile(null);
   };
 
+  const isAuthenticated = Boolean(user && user.email_confirmed_at);
+
   const value = {
     user,
     profile,
     loading,
-    isAuthenticated: !!user && user.email_confirmed_at !== null,
+    isAuthenticated,
+    refreshUser,
     signOut,
   };
 

@@ -1014,6 +1014,10 @@ if (!clientInstance) {
         return { data: getSessionData(), error: null };
       },
 
+      getUser: async () => {
+        return { data: { user: currentUser }, error: null };
+      },
+
       onAuthStateChange: (callback) => {
         authListeners.add(callback);
         // Call immediately with initial session
@@ -1047,31 +1051,10 @@ if (!clientInstance) {
         }
 
         if (!user) {
-          // If demo email or username
           if (trimmed === 'alex@fittrack.com' || trimmed === 'alex_vance') {
             user = initialUser;
           } else {
-            // Auto-provision user on demo for seamless experience
-            const newId = `user_${Date.now()}`;
-            user = {
-              id: newId,
-              email: trimmed.includes('@') ? trimmed : `${trimmed}@example.com`,
-              password: password || '',
-              email_confirmed_at: new Date().toISOString(),
-              user_metadata: {
-                username: trimmed.includes('@') ? trimmed.split('@')[0] : trimmed,
-              },
-            };
-            users.push(user);
-            saveStorage('registered_users', users);
-
-            profiles.push({
-              id: newId,
-              username: user.user_metadata.username,
-              phone: null,
-              created_at: new Date().toISOString(),
-            });
-            saveStorage('profiles', profiles);
+            return { data: { user: null, session: null }, error: { message: 'Invalid login credentials.' } };
           }
         } else if (user.password && password && user.password !== password) {
           return { data: { user: null, session: null }, error: { message: 'Invalid login credentials.' } };
@@ -1104,12 +1087,15 @@ if (!clientInstance) {
         const newId = `user_${Date.now()}`;
         const username = options?.data?.username || trimmedEmail.split('@')[0];
         const phone = options?.data?.phone || null;
+        const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
 
         const newUser = {
           id: newId,
           email: email.trim(),
           password,
           email_confirmed_at: null,
+          verification_code: verificationCode,
+          verification_expires_at: Date.now() + 15 * 60 * 1000,
           user_metadata: {
             username,
             phone,
@@ -1124,33 +1110,56 @@ if (!clientInstance) {
           id: newId,
           username,
           phone,
+          avatar_url: null,
           created_at: new Date().toISOString(),
         });
         saveStorage('profiles', profiles);
 
-        return { data: { user: newUser, session: null }, error: null };
+        return { data: { user: newUser, session: null, verificationCode }, error: null };
       },
 
-      verifyDemoEmail: async (email) => {
+      verifyOtp: async ({ email, token }) => {
         const trimmedEmail = (email || '').trim().toLowerCase();
-        const users = loadStorage('registered_users', [initialUser]);
-        const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
-        let verifiedUser;
-
-        if (idx >= 0) {
-          users[idx] = {
-            ...users[idx],
-            email_confirmed_at: new Date().toISOString(),
-          };
-          saveStorage('registered_users', users);
-          verifiedUser = users[idx];
-        } else {
-          verifiedUser = {
-            ...initialUser,
-            email: trimmedEmail || initialUser.email,
-            email_confirmed_at: new Date().toISOString(),
+        const cleanToken = (token || '').trim();
+        if (!trimmedEmail || !cleanToken) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'Please enter both your email and the 6-digit verification code.' },
           };
         }
+
+        const users = loadStorage('registered_users', [initialUser]);
+        const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
+        if (idx < 0) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'No pending registration found for this email.' },
+          };
+        }
+
+        const targetUser = users[idx];
+        if (!targetUser.verification_code || targetUser.verification_code !== cleanToken) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'Invalid verification code. Please check the code and try again.' },
+          };
+        }
+
+        if (targetUser.verification_expires_at && Date.now() > targetUser.verification_expires_at) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'Verification code has expired. Please resend a new code.' },
+          };
+        }
+
+        const verifiedUser = {
+          ...targetUser,
+          email_confirmed_at: new Date().toISOString(),
+          verification_code: null,
+          verification_expires_at: null,
+        };
+        users[idx] = verifiedUser;
+        saveStorage('registered_users', users);
 
         currentUser = verifiedUser;
         saveStorage('auth_user', currentUser);
@@ -1167,8 +1176,21 @@ if (!clientInstance) {
         return { error: null };
       },
 
-      resend: async () => {
-        return { data: {}, error: null };
+      resend: async ({ email } = {}) => {
+        const trimmedEmail = (email || '').trim().toLowerCase();
+        const users = loadStorage('registered_users', [initialUser]);
+        const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
+        if (idx < 0) {
+          return { data: null, error: { message: 'Account not found for this email.' } };
+        }
+        const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+        users[idx] = {
+          ...users[idx],
+          verification_code: verificationCode,
+          verification_expires_at: Date.now() + 15 * 60 * 1000,
+        };
+        saveStorage('registered_users', users);
+        return { data: { verificationCode }, error: null };
       },
     },
 

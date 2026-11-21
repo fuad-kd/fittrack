@@ -21,22 +21,29 @@ const LoadingScreen = () => (
   </div>
 );
 
-// Protected route – redirects to /login if not authenticated
+// Protected route – redirects to /login or /verify-email if not authenticated & email-verified
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
 
-  return user ? children : <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    if (user && !user.email_confirmed_at) {
+      return <Navigate to="/verify-email" state={{ email: user.email }} replace />;
+    }
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
 
-// Public route – redirects to /dashboard if already logged in
+// Public route – redirects to /dashboard only if authenticated & email-verified
 const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
 
-  return user ? <Navigate to="/dashboard" replace /> : children;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 };
 
 function App() {

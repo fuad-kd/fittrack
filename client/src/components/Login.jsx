@@ -44,7 +44,7 @@ const Login = () => {
         email = userData;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (signInError) {
         if (signInError.message.includes('Email not confirmed')) {
@@ -52,6 +52,12 @@ const Login = () => {
           return;
         }
         throw signInError;
+      }
+
+      if (signInData?.user && !signInData.user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        navigate('/verify-email', { state: { email } });
+        return;
       }
 
       navigate('/dashboard');
