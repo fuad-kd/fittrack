@@ -60,7 +60,53 @@
   font-weight: 400;
 }
 
-/* ── Username status indicators ── */
+/* ── Phone country code selector + input row ── */
+.phone-input-group {
+  display: flex;
+  align-items: stretch;
+  gap: 0.65rem;
+}
+
+.country-code-select {
+  flex: 0 0 auto;
+  min-width: 118px;
+  max-width: 145px;
+  padding: 0.75rem 0.4rem 0.75rem 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--surface-3);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.country-code-select:focus {
+  border-bottom-color: var(--gold);
+}
+
+.country-code-select option {
+  background-color: #0D0E14;
+  color: #F0EDE8;
+}
+
+.phone-number-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-format-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+/* ── Username & Email status indicators ── */
 .input-wrap input.input-available {
   border-bottom-color: #55B985;
 }
@@ -91,6 +137,10 @@
 
 .hint.invalid {
   color: #E5A96A;
+}
+
+.hint.neutral {
+  color: var(--text-dim);
 }
 
 /* ── Password Condition Checklist (red until filled) ── */

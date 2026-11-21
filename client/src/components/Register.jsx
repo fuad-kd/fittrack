@@ -1,9 +1,32 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { evaluatePasswordRules } from '../utils/passwordRules';
 import './Login.css';
 import './Register.css';
+
+const COUNTRY_PHONE_OPTIONS = [
+  { code: 'BD', name: 'Bangladesh', dialCode: '+880', flag: '🇧🇩', example: '1712-345678' },
+  { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', example: '(555) 234-5678' },
+  { code: 'GB', name: 'United Kingdom', dialCode: '+44', flag: '🇬🇧', example: '7911 123456' },
+  { code: 'CA', name: 'Canada', dialCode: '+1', flag: '🇨🇦', example: '(416) 555-0192' },
+  { code: 'IN', name: 'India', dialCode: '+91', flag: '🇮🇳', example: '98765-43210' },
+  { code: 'PK', name: 'Pakistan', dialCode: '+92', flag: '🇵🇰', example: '301-2345678' },
+  { code: 'AE', name: 'UAE', dialCode: '+971', flag: '🇦🇪', example: '50 123 4567' },
+  { code: 'SA', name: 'Saudi Arabia', dialCode: '+966', flag: '🇸🇦', example: '50 123 4567' },
+  { code: 'MY', name: 'Malaysia', dialCode: '+60', flag: '🇲🇾', example: '12-345 6789' },
+  { code: 'SG', name: 'Singapore', dialCode: '+65', flag: '🇸🇬', example: '8123 4567' },
+  { code: 'AU', name: 'Australia', dialCode: '+61', flag: '🇦🇺', example: '412 345 678' },
+  { code: 'DE', name: 'Germany', dialCode: '+49', flag: '🇩🇪', example: '151 23456789' },
+  { code: 'FR', name: 'France', dialCode: '+33', flag: '🇫🇷', example: '6 12 34 56 78' },
+  { code: 'IT', name: 'Italy', dialCode: '+39', flag: '🇮🇹', example: '312 345 6789' },
+  { code: 'ES', name: 'Spain', dialCode: '+34', flag: '🇪🇸', example: '612 34 56 78' },
+  { code: 'JP', name: 'Japan', dialCode: '+81', flag: '🇯🇵', example: '90-1234-5678' },
+  { code: 'KR', name: 'South Korea', dialCode: '+82', flag: '🇰🇷', example: '10-1234-5678' },
+  { code: 'TR', name: 'Turkey', dialCode: '+90', flag: '🇹🇷', example: '532 123 45 67' },
+];
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Register = () => {
   const navigate = useNavigate();
@@ -11,6 +34,7 @@ const Register = () => {
   const [form, setForm] = useState({
     username: '',
     email: '',
+    countryCode: 'BD',
     phone: '',
     password: '',
     confirmPassword: '',
@@ -22,8 +46,23 @@ const Register = () => {
 
   // Username availability state: 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
   const [usernameStatus, setUsernameStatus] = useState('idle');
-  // useRef so the timer never causes re-renders or stale closures
+  // Email availability state: 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'valid_unverified'
+  const [emailStatus, setEmailStatus]       = useState('idle');
+
   const usernameTimerRef = useRef(null);
+  const emailTimerRef = useRef(null);
+  const latestUsernameRef = useRef('');
+  const latestEmailRef = useRef('');
+
+  useEffect(() => {
+    return () => {
+      if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+      if (emailTimerRef.current) clearTimeout(emailTimerRef.current);
+    };
+  }, []);
+
+  const selectedCountry =
+    COUNTRY_PHONE_OPTIONS.find((c) => c.code === form.countryCode) || COUNTRY_PHONE_OPTIONS[0];
 
   const passwordCheck = evaluatePasswordRules(form.password);
 
@@ -34,6 +73,8 @@ const Register = () => {
 
     if (name === 'username') {
       checkUsernameDebounced(value);
+    } else if (name === 'email') {
+      checkEmailDebounced(value);
     }
   };
 
@@ -42,6 +83,7 @@ const Register = () => {
     if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
 
     const trimmed = value.trim().toLowerCase();
+    latestUsernameRef.current = trimmed;
 
     if (trimmed.length < 3) {
       setUsernameStatus(trimmed.length === 0 ? 'idle' : 'invalid');
@@ -63,16 +105,60 @@ const Register = () => {
           .eq('username', trimmed)
           .maybeSingle();
 
+        if (latestUsernameRef.current !== trimmed) return;
+
         if (error) {
-          // Can't reach DB — assume available; unique constraint protects on insert
           console.warn('Username check error:', error.message);
           setUsernameStatus('available');
           return;
         }
         setUsernameStatus(data ? 'taken' : 'available');
       } catch (err) {
+        if (latestUsernameRef.current !== trimmed) return;
         console.warn('Username check failed:', err);
         setUsernameStatus('available');
+      }
+    }, 500);
+  };
+
+  // Debounced email availability check (500 ms)
+  const checkEmailDebounced = (value) => {
+    if (emailTimerRef.current) clearTimeout(emailTimerRef.current);
+
+    const trimmed = value.trim().toLowerCase();
+    latestEmailRef.current = trimmed;
+
+    if (!trimmed) {
+      setEmailStatus('idle');
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setEmailStatus('invalid');
+      return;
+    }
+
+    setEmailStatus('checking');
+
+    emailTimerRef.current = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.rpc('check_email_available', {
+          email_input: trimmed,
+        });
+
+        if (latestEmailRef.current !== trimmed) return;
+
+        if (error || typeof data !== 'boolean') {
+          if (error) console.warn('Email availability check error:', error.message);
+          setEmailStatus('valid_unverified');
+          return;
+        }
+
+        setEmailStatus(data ? 'available' : 'taken');
+      } catch (err) {
+        if (latestEmailRef.current !== trimmed) return;
+        console.warn('Email availability check failed:', err);
+        setEmailStatus('valid_unverified');
       }
     }, 500);
   };
@@ -87,9 +173,34 @@ const Register = () => {
     }
   };
 
+  const emailHint = () => {
+    switch (emailStatus) {
+      case 'checking':         return <span className="hint checking">Checking email availability...</span>;
+      case 'available':        return <span className="hint available">✓ Email available</span>;
+      case 'taken':            return <span className="hint taken">✕ Email already registered — try signing in</span>;
+      case 'invalid':          return <span className="hint invalid">Enter a valid email address (e.g. name@example.com)</span>;
+      case 'valid_unverified': return <span className="hint neutral">✓ Valid email format</span>;
+      default:                 return null;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const trimmedEmail = form.email.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (emailStatus === 'taken') {
+      setError('This email is already registered. Please sign in instead.');
+      return;
+    }
+    if (emailStatus === 'checking') {
+      setError('Still checking email availability — please wait a moment and try again.');
+      return;
+    }
 
     if (!passwordCheck.allMet) {
       setError('Password must be at least 8 characters, include 1 uppercase letter, and 1 special character.');
@@ -99,6 +210,7 @@ const Register = () => {
       setError('Passwords do not match.');
       return;
     }
+
     // Username format check (always runs regardless of background check status)
     const trimmedUsername = form.username.trim().toLowerCase();
     if (trimmedUsername.length < 3 || !/^[a-z0-9_]+$/.test(trimmedUsername)) {
@@ -118,17 +230,30 @@ const Register = () => {
       return;
     }
 
+    const rawPhone = form.phone.trim();
+    if (rawPhone) {
+      const digitsOnly = rawPhone.replace(/\D/g, '');
+      if (digitsOnly.length < 6) {
+        setError(`Please enter a valid phone number (e.g. ${selectedCountry.dialCode} ${selectedCountry.example}).`);
+        return;
+      }
+    }
+
+    const formattedPhone = rawPhone
+      ? (rawPhone.startsWith('+') ? rawPhone : `${selectedCountry.dialCode} ${rawPhone}`)
+      : null;
+
     setLoading(true);
 
     try {
       // 1. Create auth user with Supabase, passing profile data in metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email.trim(),
+        email: trimmedEmail,
         password: form.password,
         options: {
           data: {
             username: trimmedUsername,
-            phone: form.phone.trim() || null,
+            phone: formattedPhone,
           },
           emailRedirectTo: window.location.origin,
         },
@@ -141,6 +266,7 @@ const Register = () => {
 
       // Supabase returns empty identities when email already exists and confirmation is enabled
       if (Array.isArray(createdUser.identities) && createdUser.identities.length === 0) {
+        setEmailStatus('taken');
         throw new Error('An account with this email already exists. Please sign in instead.');
       }
 
@@ -152,7 +278,7 @@ const Register = () => {
       // 2. Navigate to verification confirmation screen
       navigate('/verify-email', {
         state: {
-          email: form.email.trim(),
+          email: trimmedEmail,
           justSignedUp: true,
         },
       });
@@ -259,26 +385,50 @@ const Register = () => {
                   onChange={handleChange}
                   required
                   autoComplete="email"
+                  className={
+                    emailStatus === 'available' ? 'input-available' :
+                    emailStatus === 'taken' || emailStatus === 'invalid' ? 'input-taken' : ''
+                  }
                 />
               </div>
+              {emailHint()}
             </div>
 
-            {/* Phone */}
+            {/* Phone with Country Code Selector + Dynamic Example Number */}
             <div className="field">
               <label htmlFor="phone">
                 Phone Number <span className="label-optional">(optional)</span>
               </label>
-              <div className="input-wrap">
-                <input
-                  id="phone"
-                  type="tel"
-                  name="phone"
-                  placeholder="+1 (555) 000-0000"
-                  value={form.phone}
+              <div className="phone-input-group">
+                <select
+                  id="countryCode"
+                  name="countryCode"
+                  aria-label="Country code"
+                  value={form.countryCode}
                   onChange={handleChange}
-                  autoComplete="tel"
-                />
+                  className="country-code-select"
+                >
+                  {COUNTRY_PHONE_OPTIONS.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.flag} {country.code} ({country.dialCode})
+                    </option>
+                  ))}
+                </select>
+                <div className="input-wrap phone-number-wrap">
+                  <input
+                    id="phone"
+                    type="tel"
+                    name="phone"
+                    placeholder={`e.g. ${selectedCountry.example}`}
+                    value={form.phone}
+                    onChange={handleChange}
+                    autoComplete="tel-national"
+                  />
+                </div>
               </div>
+              <span className="phone-format-hint">
+                Example ({selectedCountry.name}): {selectedCountry.dialCode} {selectedCountry.example}
+              </span>
             </div>
 
             {/* Password */}

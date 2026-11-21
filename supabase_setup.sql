@@ -54,6 +54,23 @@ $$;
 -- 8. Grant execute permission on the function
 grant execute on function public.get_email_by_id(uuid) to anon, authenticated;
 
+-- 8.1 Function: Check whether an email address is available during registration
+create or replace function public.check_email_available(email_input text)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select not exists (
+    select 1
+    from auth.users
+    where lower(email) = lower(trim(email_input))
+  );
+$$;
+
+grant execute on function public.check_email_available(text) to anon, authenticated;
+
 -- 8.5 Trigger to automatically create a profile for new users
 create or replace function public.handle_new_user()
 returns trigger

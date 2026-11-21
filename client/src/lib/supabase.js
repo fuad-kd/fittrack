@@ -1099,6 +1099,12 @@ if (!clientInstance) {
         if (user) return { data: user.email, error: null };
         return { data: 'athlete@fittrack.com', error: null };
       }
+      if (fnName === 'check_email_available') {
+        const target = String(params.email_input || '').trim().toLowerCase();
+        const users = loadStorage('registered_users', [initialUser]);
+        const exists = users.some((u) => String(u.email || '').trim().toLowerCase() === target);
+        return { data: !exists, error: null };
+      }
       return { data: null, error: null };
     },
 
