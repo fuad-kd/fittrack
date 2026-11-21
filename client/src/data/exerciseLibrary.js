@@ -105,8 +105,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 15,
     defaultWeight: 25,
     tip: 'Maintain slight elbow bend and focus on squeezing the inner chest together.',
-    youtubeId: 'eGjt4lkGeZ4',
-    youtubeUrl: 'https://www.youtube.com/watch?v=eGjt4lkGeZ4',
+    youtubeId: 'a9vQ_hwIksU',
+    youtubeUrl: 'https://www.youtube.com/shorts/a9vQ_hwIksU',
     targetMuscle: 'Pectoralis Major (Inner Chest & Sternal Head), Anterior Deltoids',
     infographics: [
       {
@@ -291,8 +291,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 12,
     defaultWeight: 0,
     tip: 'Pin elbows tight to your ribs throughout the descent to isolate the triceps.',
-    youtubeId: 'IODxDxX7oi4',
-    youtubeUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+    youtubeId: '40auFxqBlGE',
+    youtubeUrl: 'https://www.youtube.com/shorts/40auFxqBlGE',
     targetMuscle: 'Triceps Brachii (All 3 Heads), Anterior Deltoid',
     infographics: [
       {
@@ -362,8 +362,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 15,
     defaultWeight: 0,
     tip: 'Take hands 1.5x shoulder width to maximize pectoral stretch and outer chest width.',
-    youtubeId: 'IODxDxX7oi4',
-    youtubeUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+    youtubeId: 'EsIdzx1J0iA',
+    youtubeUrl: 'https://www.youtube.com/watch?v=EsIdzx1J0iA',
     targetMuscle: 'Pectoralis Major (Outer Sternal Head), Anterior Deltoids',
     infographics: [
       {
@@ -980,8 +980,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 8,
     defaultWeight: 50,
     tip: 'Maintain flat spine at 45-degree angle; pull bar directly towards navel.',
-    youtubeId: 'FWJR5Ve8gkQ',
-    youtubeUrl: 'https://www.youtube.com/watch?v=FWJR5Ve8gkQ',
+    youtubeId: 'FWJR5Ve8bnQ',
+    youtubeUrl: 'https://www.youtube.com/watch?v=FWJR5Ve8bnQ',
     targetMuscle: 'Latissimus Dorsi, Rhomboids, Trapezius, Rear Deltoids, Biceps',
     infographics: [
       {
@@ -1276,8 +1276,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 12,
     defaultWeight: 25,
     tip: 'Keep handles at shoulder level and isolate the posterior deltoid.',
-    youtubeId: '6kALZikXxLc',
-    youtubeUrl: 'https://www.youtube.com/watch?v=6kALZikXxLc',
+    youtubeId: '7tgx6QHB0-A',
+    youtubeUrl: 'https://www.youtube.com/shorts/7tgx6QHB0-A',
     targetMuscle: 'Posterior Deltoids, Rhomboids, Trapezius (Mid)',
     infographics: [
       {
@@ -1790,8 +1790,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 15,
     defaultWeight: 30,
     tip: 'Flex spine forward using abs rather than pulling with arms or hip flexors.',
-    youtubeId: 'k_l55dJ_o-I',
-    youtubeUrl: 'https://www.youtube.com/watch?v=k_l55dJ_o-I',
+    youtubeId: 'fl9FSpCpvq0',
+    youtubeUrl: 'https://www.youtube.com/watch?v=fl9FSpCpvq0',
     targetMuscle: 'Rectus Abdominis (Abdominals)',
     infographics: [
       {
@@ -1869,8 +1869,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 12,
     defaultWeight: 0,
     tip: 'Curl pelvis up at the top of movement to fully activate lower abdominals.',
-    youtubeId: 'l4kQd9eWclE',
-    youtubeUrl: 'https://www.youtube.com/watch?v=l4kQd9eWclE',
+    youtubeId: '1XgbnXtOUvk',
+    youtubeUrl: 'https://www.youtube.com/shorts/1XgbnXtOUvk',
     targetMuscle: 'Rectus Abdominis (Lower), Hip Flexors, Obliques',
     infographics: [
       {
@@ -1910,8 +1910,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 25,
     defaultWeight: 0,
     tip: '12% incline at 5 km/h: high caloric burn with zero joint impact.',
-    youtubeId: '8i3VnRdVQzy',
-    youtubeUrl: 'https://www.youtube.com/watch?v=8i3VnRdVQzy',
+    youtubeId: 'NAsObfFJXvE',
+    youtubeUrl: 'https://www.youtube.com/watch?v=NAsObfFJXvE',
     targetMuscle: 'Glutes, Hamstrings, Calves, Cardiovascular System',
     infographics: [
       {
@@ -1990,8 +1990,8 @@ export const EXERCISE_LIBRARY = [
     defaultReps: 30,
     defaultWeight: 0,
     tip: 'High-intensity interval conditioning that pushes VO2 max to peak.',
-    youtubeId: 'Cq_7493rP4M',
-    youtubeUrl: 'https://www.youtube.com/watch?v=Cq_7493rP4M',
+    youtubeId: 'KC-ZSfOmXgE',
+    youtubeUrl: 'https://www.youtube.com/watch?v=KC-ZSfOmXgE',
     targetMuscle: 'Full Body — Cardiovascular System, VO2 Max',
     infographics: [
       {

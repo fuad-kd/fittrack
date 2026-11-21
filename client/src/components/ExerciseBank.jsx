@@ -447,7 +447,11 @@ function VideoModal({ exercise, onClose }) {
         </div>
         <div className="video-dialog-frame">
           <YouTubeEmbed
-            videoId={exercise.youtubeId || exercise.youtubeUrl?.split('v=')[1] || 'xUm0BiZCWlQ'}
+            videoId={
+              exercise.youtubeId ||
+              exercise.youtubeUrl?.match(/(?:v=|shorts\/|youtu\.be\/)([^?&/]+)/)?.[1] ||
+              'xUm0BiZCWlQ'
+            }
             title={exercise.name}
           />
         </div>

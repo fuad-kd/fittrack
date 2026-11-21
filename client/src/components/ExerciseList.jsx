@@ -51,9 +51,10 @@ const emptyEx = {
 function extractYouTubeId(url) {
   if (!url) return null;
   const patterns = [
-    /youtu\.be\/([^?&]+)/,
+    /youtu\.be\/([^?&/]+)/,
     /youtube\.com\/watch\?v=([^&]+)/,
-    /youtube\.com\/embed\/([^?&]+)/,
+    /youtube\.com\/shorts\/([^?&/]+)/,
+    /youtube\.com\/embed\/([^?&/]+)/,
   ];
   for (const p of patterns) {
     const m = url.match(p);

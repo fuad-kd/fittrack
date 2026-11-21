@@ -81,9 +81,10 @@ const NAV_ITEMS = [
 function extractYouTubeId(url) {
   if (!url) return '2yjwXTZQDDI';
   const patterns = [
-    /youtu\.be\/([^?&]+)/,
+    /youtu\.be\/([^?&/]+)/,
     /youtube\.com\/watch\?v=([^&]+)/,
-    /youtube\.com\/embed\/([^?&]+)/,
+    /youtube\.com\/shorts\/([^?&/]+)/,
+    /youtube\.com\/embed\/([^?&/]+)/,
   ];
   for (const p of patterns) {
     const m = url.match(p);
@@ -351,7 +352,7 @@ const Dashboard = () => {
           sets: 3,
           reps: 12,
           weight_kg: 0,
-          youtube_url: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+          youtube_url: 'https://www.youtube.com/shorts/40auFxqBlGE',
           notes: 'Keep elbows pinned tight to ribs — direct tricep overload',
           hasInfographics: true,
           infographicKey: 'elbows-in'
@@ -363,7 +364,7 @@ const Dashboard = () => {
           sets: 3,
           reps: 15,
           weight_kg: 0,
-          youtube_url: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
+          youtube_url: 'https://www.youtube.com/watch?v=EsIdzx1J0iA',
           notes: '1.5x shoulder width for deep chest adduction and outer sternal stretch',
           hasInfographics: true,
           infographicKey: 'wide-grip'
