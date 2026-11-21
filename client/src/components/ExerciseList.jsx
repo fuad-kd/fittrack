@@ -16,7 +16,8 @@ import {
   MessageSquare,
   Activity,
   Maximize2,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import YouTubeEmbed from './YouTubeEmbed';
@@ -77,6 +78,7 @@ export default function ExerciseList({ plan, muscleGroups }) {
   const [anatomyEx,    setAnatomyEx]    = useState(null); // exercise whose anatomy diagram is shown
   const [activeAnatomyTab, setActiveAnatomyTab] = useState('');
   const [lightboxImg,  setLightboxImg]  = useState(null);
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
 
   /* ── Fetch exercises ── */
   const fetchExercises = useCallback(async () => {
@@ -97,7 +99,13 @@ export default function ExerciseList({ plan, muscleGroups }) {
     setFilterMuscle('');
     setShowForm(false);
     setPreviewEx(null);
+    setAllowDuplicate(false);
   }, [fetchExercises]);
+
+  const normalizedInputName = form.name.trim().toLowerCase();
+  const duplicateMatch = normalizedInputName
+    ? exercises.find((ex) => (ex.name || '').trim().toLowerCase() === normalizedInputName)
+    : null;
 
   /* ── Filtered + Paginated ── */
   const filtered = exercises.filter(ex => {
@@ -117,6 +125,8 @@ export default function ExerciseList({ plan, muscleGroups }) {
   const validate = () => {
     const e = {};
     if (!form.name.trim())         e.name        = 'Exercise name is required.';
+    else if (duplicateMatch && !allowDuplicate)
+      e.name = `"${duplicateMatch.name}" is already in this exercise list. Check "Add duplicate anyway" below to add it again.`;
     if (!form.muscle_group)        e.muscle_group = 'Select a muscle group.';
     const sets = Number(form.sets);
     const reps = Number(form.reps);
@@ -152,6 +162,7 @@ export default function ExerciseList({ plan, muscleGroups }) {
     if (!error) {
       setForm(emptyEx);
       setErrors({});
+      setAllowDuplicate(false);
       setShowForm(false);
       fetchExercises();
     }
@@ -167,6 +178,9 @@ export default function ExerciseList({ plan, muscleGroups }) {
   const handleChange = (field, val) => {
     setForm(f => ({ ...f, [field]: val }));
     setErrors(er => ({ ...er, [field]: '' }));
+    if (field === 'name') {
+      setAllowDuplicate(false);
+    }
   };
 
   /* ── Render ── */
@@ -185,7 +199,7 @@ export default function ExerciseList({ plan, muscleGroups }) {
 
         <button 
           className="btn-add-movement" 
-          onClick={() => { setShowForm(s => !s); setErrors({}); }}
+          onClick={() => { setShowForm(s => !s); setErrors({}); setAllowDuplicate(false); }}
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           <span>{showForm ? 'Cancel' : 'Add Movement'}</span>
@@ -199,6 +213,31 @@ export default function ExerciseList({ plan, muscleGroups }) {
             <h4>Program New Movement</h4>
             <span>Specify rep scheme, target load, and technique cues</span>
           </div>
+
+          {duplicateMatch && (
+            <div className="ex-duplicate-warning" role="alert">
+              <div className="ex-warning-top">
+                <AlertTriangle size={17} className="ex-warning-icon" />
+                <div>
+                  <strong>Exercise already in your list</strong>
+                  <p>
+                    &ldquo;{duplicateMatch.name}&rdquo; is already added to <strong>{plan.name}</strong>.
+                  </p>
+                </div>
+              </div>
+              <label className="ex-duplicate-check">
+                <input
+                  type="checkbox"
+                  checked={allowDuplicate}
+                  onChange={(e) => {
+                    setAllowDuplicate(e.target.checked);
+                    setErrors((er) => ({ ...er, name: '' }));
+                  }}
+                />
+                <span>Add duplicate anyway</span>
+              </label>
+            </div>
+          )}
 
           <div className="form-row">
             <div className="form-group">

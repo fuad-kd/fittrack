@@ -133,6 +133,58 @@
   font-size: 0.75rem;
 }
 
+.ex-duplicate-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.ex-warning-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.ex-warning-icon {
+  color: #fbbf24;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ex-warning-top strong {
+  display: block;
+  font-size: 0.84rem;
+  color: #fde68a;
+  margin-bottom: 0.15rem;
+}
+
+.ex-warning-top p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #fcd34d;
+  line-height: 1.4;
+}
+
+.ex-duplicate-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: #f8fafc;
+  cursor: pointer;
+  padding-left: 1.65rem;
+}
+
+.ex-duplicate-check input[type="checkbox"] {
+  accent-color: #f59e0b;
+  cursor: pointer;
+}
+
 .three-col {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

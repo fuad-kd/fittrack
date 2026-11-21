@@ -23,7 +23,8 @@ import {
   Eye,
   Maximize2,
   Activity,
-  Shield
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 
 // YouTube icon (SVG — lucide-react version in this project doesn't ship it)
@@ -480,24 +481,95 @@ function AddToPlanModal({ exercise, plans, onQuickCreatePlan, onExerciseAdded, o
   const [saving,           setSaving]           = useState(false);
   const [showNewPlanInput, setShowNewPlanInput] = useState(false);
   const [newPlanName,      setNewPlanName]      = useState('');
+  const [existingNames,    setExistingNames]    = useState([]);
+  const [checkingDup,      setCheckingDup]      = useState(false);
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false);
+  const [modalError,       setModalError]       = useState('');
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
 
+  // Fetch existing exercises for the currently selected workout plan
+  useEffect(() => {
+    let active = true;
+    setConfirmDuplicate(false);
+    setModalError('');
+
+    if (showNewPlanInput || !targetPlanId) {
+      setExistingNames([]);
+      return () => { active = false; };
+    }
+
+    const loadPlanExercises = async () => {
+      setCheckingDup(true);
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('name')
+        .eq('plan_id', targetPlanId);
+      if (!active) return;
+      if (!error && Array.isArray(data)) {
+        setExistingNames(data.map((row) => (row.name || '').trim().toLowerCase()));
+      } else {
+        setExistingNames([]);
+      }
+      setCheckingDup(false);
+    };
+
+    loadPlanExercises();
+    return () => { active = false; };
+  }, [targetPlanId, showNewPlanInput]);
+
+  const normalizedExerciseName = (exercise.name || '').trim().toLowerCase();
+  const isDuplicateInPlan =
+    !showNewPlanInput &&
+    Boolean(targetPlanId) &&
+    existingNames.includes(normalizedExerciseName);
+
+  const selectedPlan = plans.find((p) => String(p.id) === String(targetPlanId));
+
   const handleConfirmAdd = async (e) => {
     e.preventDefault();
+    setModalError('');
     let destinationPlanId = targetPlanId;
 
     if (showNewPlanInput && newPlanName.trim()) {
       setSaving(true);
       const { data: newPlan, error: planError } = await onQuickCreatePlan(newPlanName.trim());
-      if (planError || !newPlan) { setSaving(false); alert('Could not create new plan.'); return; }
+      if (planError || !newPlan) {
+        setSaving(false);
+        setModalError('Could not create new plan. Please try again.');
+        return;
+      }
       destinationPlanId = newPlan.id;
     }
 
-    if (!destinationPlanId) { alert('Please select or create a workout plan.'); return; }
+    if (!destinationPlanId) {
+      setModalError('Please select or create a workout plan.');
+      return;
+    }
+
+    // Authoritative duplicate check against the destination plan before inserting
+    if (!showNewPlanInput && !confirmDuplicate) {
+      setSaving(true);
+      const { data: latestExercises, error: checkErr } = await supabase
+        .from('exercises')
+        .select('name')
+        .eq('plan_id', destinationPlanId);
+
+      if (!checkErr && Array.isArray(latestExercises)) {
+        const latestNames = latestExercises.map((row) => (row.name || '').trim().toLowerCase());
+        setExistingNames(latestNames);
+        if (latestNames.includes(normalizedExerciseName)) {
+          setSaving(false);
+          setModalError(
+            `"${exercise.name}" is already in "${selectedPlan?.name || 'this workout plan'}". Check "Add duplicate anyway" above or choose another plan.`
+          );
+          return;
+        }
+      }
+    }
 
     setSaving(true);
     const { error } = await supabase.from('exercises').insert({
@@ -516,7 +588,7 @@ function AddToPlanModal({ exercise, plans, onQuickCreatePlan, onExerciseAdded, o
       if (onExerciseAdded) onExerciseAdded();
       onClose();
     } else {
-      alert('Error adding exercise: ' + error.message);
+      setModalError('Error adding exercise: ' + error.message);
     }
   };
 
@@ -580,6 +652,39 @@ function AddToPlanModal({ exercise, plans, onQuickCreatePlan, onExerciseAdded, o
             )}
           </div>
 
+          {isDuplicateInPlan && (
+            <div className="modal-duplicate-warning" role="alert">
+              <div className="warning-banner-top">
+                <AlertTriangle size={17} className="warning-icon" />
+                <div>
+                  <strong>Already in this exercise list</strong>
+                  <p>
+                    &ldquo;{exercise.name}&rdquo; is already added to{' '}
+                    <strong>{selectedPlan?.name || 'this workout plan'}</strong>.
+                  </p>
+                </div>
+              </div>
+              <label className="duplicate-override-check">
+                <input
+                  type="checkbox"
+                  checked={confirmDuplicate}
+                  onChange={(e) => {
+                    setConfirmDuplicate(e.target.checked);
+                    setModalError('');
+                  }}
+                />
+                <span>Add duplicate anyway</span>
+              </label>
+            </div>
+          )}
+
+          {modalError && (
+            <div className="modal-error-banner" role="alert">
+              <AlertTriangle size={15} />
+              <span>{modalError}</span>
+            </div>
+          )}
+
           <div className="modal-metrics-grid">
             <div className="modal-form-group">
               <label>Working Sets</label>
@@ -620,7 +725,7 @@ function AddToPlanModal({ exercise, plans, onQuickCreatePlan, onExerciseAdded, o
             <button
               type="submit"
               className="btn-modal-confirm"
-              disabled={saving || (!targetPlanId && !newPlanName.trim())}
+              disabled={saving || checkingDup || (!targetPlanId && !newPlanName.trim())}
             >
               <Sparkles size={16} />
               <span>{saving ? 'Adding Movement...' : 'Add to Workout Plan'}</span>
