@@ -46,6 +46,41 @@
   margin: 0;
 }
 
+.social-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 0.84rem;
+
+  .social-error-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-dismiss-error {
+    background: transparent;
+    border: none;
+    color: #fca5a5;
+    cursor: pointer;
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
 /* Create Post Card */
 .create-post-card {
   background: rgba(17, 24, 38, 0.8);
@@ -72,6 +107,15 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .input-field-wrapper {
@@ -194,6 +238,10 @@
   &:hover {
     border-color: rgba(255, 255, 255, 0.12);
   }
+
+  &.optimistic {
+    opacity: 0.78;
+  }
 }
 
 .post-header {
@@ -221,6 +269,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .author-name {
@@ -286,19 +336,28 @@
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.08);
     color: #f8fafc;
   }
 
-  &.like:hover {
-    color: #10b981;
-    border-color: rgba(16, 185, 129, 0.3);
+  &:disabled {
+    opacity: 0.7;
+    cursor: wait;
   }
 
-  &.dislike:hover {
+  &.like:hover:not(:disabled),
+  &.like.active {
+    color: #f43f5e;
+    background: rgba(244, 63, 94, 0.14);
+    border-color: rgba(244, 63, 94, 0.45);
+  }
+
+  &.dislike:hover:not(:disabled),
+  &.dislike.active {
     color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.45);
   }
 }
 
@@ -363,10 +422,24 @@
     cursor: pointer;
     transition: all 0.2s ease;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: #fde68a;
     }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
   }
+}
+
+.spin-icon {
+  animation: socialSpin 0.8s linear infinite;
+}
+
+@keyframes socialSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .comments-list {
@@ -381,6 +454,11 @@
   background: rgba(0, 0, 0, 0.2);
   padding: 0.65rem 0.85rem;
   border-radius: 12px;
+  transition: opacity 0.2s ease;
+
+  &.optimistic {
+    opacity: 0.75;
+  }
 }
 
 .comment-author-badge {
@@ -395,6 +473,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .comment-text-content {

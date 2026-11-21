@@ -196,54 +196,223 @@ create policy "Users manage own progress entries"
 -- WEEK 5 & 6: Social & Ratings Module
 -- ============================================================
 
+-- Ensure every existing auth user has a row in public.profiles
+-- so foreign keys to public.profiles(id) succeed immediately.
+insert into public.profiles (id, username, phone)
+select
+  u.id,
+  coalesce(
+    nullif(trim(u.raw_user_meta_data->>'username'), ''),
+    split_part(coalesce(u.email, 'athlete'), '@', 1) || '_' || left(u.id::text, 6)
+  ),
+  u.raw_user_meta_data->>'phone'
+from auth.users u
+where not exists (
+  select 1 from public.profiles p where p.id = u.id
+)
+on conflict (id) do nothing;
+
+-- Community Posts
 create table if not exists public.posts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade not null,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   username text,
-  content text not null,
+  content text not null default '',
   media_url text,
   media_type text check (media_type in ('image', 'video')),
-  likes_count integer default 0,
-  dislikes_count integer default 0,
-  created_at timestamptz default now()
+  likes_count integer not null default 0,
+  dislikes_count integer not null default 0,
+  created_at timestamptz not null default now()
 );
-alter table public.posts enable row level security;
-drop policy if exists "Anyone readable" on public.posts;
-create policy "Anyone readable" on public.posts for select using (true);
-drop policy if exists "Users insert own posts" on public.posts;
-create policy "Users insert own posts" on public.posts for insert with check (auth.uid() = user_id);
-drop policy if exists "Users delete own posts" on public.posts;
-create policy "Users delete own posts" on public.posts for delete using (auth.uid() = user_id);
 
+alter table public.posts
+  drop constraint if exists posts_user_id_fkey,
+  add constraint posts_user_id_fkey
+    foreign key (user_id) references public.profiles(id) on delete cascade;
+
+create index if not exists idx_posts_created_at on public.posts (created_at desc);
+create index if not exists idx_posts_user_id on public.posts (user_id);
+
+alter table public.posts enable row level security;
+
+drop policy if exists "Anyone readable" on public.posts;
+drop policy if exists "Posts are readable by anyone" on public.posts;
+create policy "Posts are readable by anyone"
+  on public.posts for select
+  using (true);
+
+drop policy if exists "Users insert own posts" on public.posts;
+create policy "Users insert own posts"
+  on public.posts for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users update own posts" on public.posts;
+create policy "Users update own posts"
+  on public.posts for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users delete own posts" on public.posts;
+create policy "Users delete own posts"
+  on public.posts for delete to authenticated
+  using (auth.uid() = user_id);
+
+-- Community Post Comments
 create table if not exists public.post_comments (
   id uuid primary key default gen_random_uuid(),
-  post_id uuid references public.posts(id) on delete cascade not null,
-  user_id uuid references auth.users(id) on delete cascade not null,
+  post_id uuid not null references public.posts(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   username text not null,
   content text not null,
-  created_at timestamptz default now()
+  created_at timestamptz not null default now()
 );
-alter table public.post_comments enable row level security;
-drop policy if exists "Anyone readable" on public.post_comments;
-create policy "Anyone readable" on public.post_comments for select using (true);
-drop policy if exists "Users insert own comments" on public.post_comments;
-create policy "Users insert own comments" on public.post_comments for insert with check (auth.uid() = user_id);
-drop policy if exists "Users delete own comments" on public.post_comments;
-create policy "Users delete own comments" on public.post_comments for delete using (auth.uid() = user_id);
 
+alter table public.post_comments
+  drop constraint if exists post_comments_user_id_fkey,
+  add constraint post_comments_user_id_fkey
+    foreign key (user_id) references public.profiles(id) on delete cascade;
+
+create index if not exists idx_post_comments_post_id on public.post_comments (post_id, created_at desc);
+
+alter table public.post_comments enable row level security;
+
+drop policy if exists "Anyone readable" on public.post_comments;
+drop policy if exists "Comments are readable by anyone" on public.post_comments;
+create policy "Comments are readable by anyone"
+  on public.post_comments for select
+  using (true);
+
+drop policy if exists "Users insert own comments" on public.post_comments;
+create policy "Users insert own comments"
+  on public.post_comments for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users update own comments" on public.post_comments;
+create policy "Users update own comments"
+  on public.post_comments for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users delete own comments" on public.post_comments;
+create policy "Users delete own comments"
+  on public.post_comments for delete to authenticated
+  using (auth.uid() = user_id);
+
+-- Community Post Likes / Reactions
 create table if not exists public.post_reactions (
   id uuid primary key default gen_random_uuid(),
-  post_id uuid references public.posts(id) on delete cascade not null,
-  user_id uuid references auth.users(id) on delete cascade not null,
-  reaction_type text check (reaction_type in ('like', 'dislike')) not null,
-  created_at timestamptz default now(),
-  constraint unique_user_post_reaction unique(post_id, user_id)
+  post_id uuid not null references public.posts(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  reaction_type text not null check (reaction_type in ('like', 'dislike')),
+  created_at timestamptz not null default now(),
+  constraint unique_user_post_reaction unique (post_id, user_id)
 );
+
+alter table public.post_reactions
+  drop constraint if exists post_reactions_user_id_fkey,
+  add constraint post_reactions_user_id_fkey
+    foreign key (user_id) references public.profiles(id) on delete cascade;
+
+create index if not exists idx_post_reactions_post_id on public.post_reactions (post_id);
+
 alter table public.post_reactions enable row level security;
+
 drop policy if exists "Anyone readable" on public.post_reactions;
-create policy "Anyone readable" on public.post_reactions for select using (true);
+drop policy if exists "Reactions are readable by anyone" on public.post_reactions;
+create policy "Reactions are readable by anyone"
+  on public.post_reactions for select
+  using (true);
+
 drop policy if exists "Users manage own reactions" on public.post_reactions;
-create policy "Users manage own reactions" on public.post_reactions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "Users insert own reactions" on public.post_reactions;
+create policy "Users insert own reactions"
+  on public.post_reactions for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users update own reactions" on public.post_reactions;
+create policy "Users update own reactions"
+  on public.post_reactions for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users delete own reactions" on public.post_reactions;
+create policy "Users delete own reactions"
+  on public.post_reactions for delete to authenticated
+  using (auth.uid() = user_id);
+
+-- Atomic trigger to keep posts.likes_count and posts.dislikes_count synced on insert/update/delete
+create or replace function public.sync_post_reaction_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_post_id uuid;
+begin
+  target_post_id := coalesce(new.post_id, old.post_id);
+
+  update public.posts
+  set
+    likes_count = (
+      select count(*) from public.post_reactions
+      where post_id = target_post_id and reaction_type = 'like'
+    ),
+    dislikes_count = (
+      select count(*) from public.post_reactions
+      where post_id = target_post_id and reaction_type = 'dislike'
+    )
+  where id = target_post_id;
+
+  return null;
+end;
+$$;
+
+drop trigger if exists trg_sync_post_reaction_counts on public.post_reactions;
+create trigger trg_sync_post_reaction_counts
+  after insert or update or delete on public.post_reactions
+  for each row execute function public.sync_post_reaction_counts();
+
+-- Enable realtime for post_comments (safe if already added)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'post_comments'
+  ) then
+    alter publication supabase_realtime add table public.post_comments;
+  end if;
+exception when others then
+  null;
+end $$;
+
+-- Ensure public storage bucket for post media exists
+insert into storage.buckets (id, name, public)
+values ('progress-photos', 'progress-photos', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Public read progress-photos" on storage.objects;
+create policy "Public read progress-photos"
+  on storage.objects for select
+  using (bucket_id = 'progress-photos');
+
+drop policy if exists "Authenticated upload progress-photos" on storage.objects;
+create policy "Authenticated upload progress-photos"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'progress-photos');
+
+drop policy if exists "Authenticated update own progress-photos" on storage.objects;
+create policy "Authenticated update own progress-photos"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'progress-photos' and auth.uid() = owner)
+  with check (bucket_id = 'progress-photos');
+
+drop policy if exists "Authenticated delete own progress-photos" on storage.objects;
+create policy "Authenticated delete own progress-photos"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'progress-photos' and auth.uid() = owner);
 
 create table if not exists public.workout_ratings (
   id uuid primary key default gen_random_uuid(),
@@ -288,4 +457,5 @@ create policy "Users manage own exercise logs"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+NOTIFY pgrst, 'reload schema';
 

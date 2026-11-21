@@ -3,13 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const isSupabaseConfigured =
+export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
   supabaseAnonKey &&
   typeof supabaseUrl === 'string' &&
   supabaseUrl.startsWith('http') &&
   supabaseUrl !== 'https://your-project.supabase.co' &&
-  !supabaseUrl.includes('placeholder');
+  !supabaseUrl.includes('placeholder')
+);
 
 let clientInstance;
 
@@ -669,10 +670,13 @@ if (!clientInstance) {
     };
   };
 
-  // Mock Query Builder
+  // Mock Query Builder (lazy execution like PostgREST / Supabase JS v2)
   class MockQueryBuilder {
     constructor(tableName) {
       this.tableName = tableName;
+      this.operation = 'select';
+      this.payload = null;
+      this.upsertOptions = {};
       this.filters = [];
       this.orderRule = null;
       this.limitCount = null;
@@ -680,6 +684,7 @@ if (!clientInstance) {
       this.isSingle = false;
       this.isMaybeSingle = false;
       this.isCountOnly = false;
+      this.returnSelected = false;
       this.selectFields = '*';
     }
 
@@ -708,6 +713,9 @@ if (!clientInstance) {
 
     select(fields = '*', options = {}) {
       this.selectFields = fields;
+      if (this.operation !== 'select') {
+        this.returnSelected = true;
+      }
       if (options.count === 'exact' && options.head) {
         this.isCountOnly = true;
       }
@@ -750,8 +758,204 @@ if (!clientInstance) {
       return this;
     }
 
+    insert(records) {
+      this.operation = 'insert';
+      this.payload = records;
+      return this;
+    }
+
+    upsert(record, options = {}) {
+      this.operation = 'upsert';
+      this.payload = record;
+      this.upsertOptions = options || {};
+      return this;
+    }
+
+    update(updates) {
+      this.operation = 'update';
+      this.payload = updates;
+      return this;
+    }
+
+    delete() {
+      this.operation = 'delete';
+      return this;
+    }
+
+    _formatResult(affected, isArrayPayload = true, count = null) {
+      if (this.isSingle) {
+        const item = Array.isArray(affected) ? affected[0] : affected;
+        if (!item) return { data: null, error: { message: 'Row not found' }, count: 0 };
+        return { data: item, error: null, count: 1 };
+      }
+      if (this.isMaybeSingle) {
+        const item = Array.isArray(affected) ? (affected[0] ?? null) : (affected ?? null);
+        return { data: item, error: null, count: item ? 1 : 0 };
+      }
+      return {
+        data: isArrayPayload ? affected : (Array.isArray(affected) ? affected[0] : affected),
+        error: null,
+        count: count ?? (Array.isArray(affected) ? affected.length : (affected ? 1 : 0)),
+      };
+    }
+
     async _execute() {
+      if (this.operation === 'insert') {
+        const records = this.payload;
+        const list = Array.isArray(records) ? records : [records];
+        const rows = this._getData();
+        const newItems = list.map((item) => ({
+          id: item.id || `gen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          created_at: item.created_at || new Date().toISOString(),
+          ...(this.tableName === 'posts' ? { likes_count: 0, dislikes_count: 0, post_comments: [] } : {}),
+          ...item,
+        }));
+
+        if (this.tableName === 'post_reactions') {
+          for (const item of newItems) {
+            const dup = rows.find(
+              (r) => String(r.post_id) === String(item.post_id) && String(r.user_id) === String(item.user_id)
+            );
+            if (dup) {
+              return { data: null, error: { message: 'Duplicate reaction for user and post' } };
+            }
+          }
+        }
+
+        rows.unshift(...newItems);
+        this._saveData(rows);
+
+        if (this.tableName === 'post_comments') {
+          const posts = loadStorage('posts', initialPosts);
+          const allProfiles = loadStorage('profiles', initialProfiles);
+          newItems.forEach((comment) => {
+            const prof = allProfiles.find((pr) => String(pr.id) === String(comment.user_id));
+            if (prof) {
+              comment.profiles = { username: prof.username, avatar_url: prof.avatar_url || null };
+            }
+            const post = posts.find((p) => p.id === comment.post_id);
+            if (post) {
+              post.post_comments = post.post_comments || [];
+              if (!post.post_comments.some((c) => c.id === comment.id)) {
+                post.post_comments.unshift(comment);
+              }
+            }
+          });
+          saveStorage('posts', posts);
+        }
+
+        if (this.tableName === 'posts') {
+          const allProfiles = loadStorage('profiles', initialProfiles);
+          newItems.forEach((p) => {
+            const prof = allProfiles.find((pr) => String(pr.id) === String(p.user_id));
+            if (prof) {
+              p.profiles = { username: prof.username, avatar_url: prof.avatar_url || null };
+            }
+          });
+        }
+
+        return this._formatResult(newItems, Array.isArray(records));
+      }
+
+      if (this.operation === 'upsert') {
+        const rows = this._getData();
+        const item = { ...this.payload };
+        const onConflict = (this.upsertOptions.onConflict || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+        let foundIndex = -1;
+        if (onConflict.length > 0) {
+          foundIndex = rows.findIndex((r) => onConflict.every((k) => String(r[k]) === String(item[k])));
+        } else if (item.id) {
+          foundIndex = rows.findIndex((r) => r.id === item.id);
+        }
+
+        let savedItem;
+        if (foundIndex >= 0) {
+          savedItem = { ...rows[foundIndex], ...item, updated_at: new Date().toISOString() };
+          rows[foundIndex] = savedItem;
+        } else {
+          savedItem = {
+            id: item.id || `gen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            created_at: item.created_at || new Date().toISOString(),
+            ...item,
+          };
+          rows.unshift(savedItem);
+        }
+
+        this._saveData(rows);
+        return this._formatResult([savedItem], false);
+      }
+
+      if (this.operation === 'update') {
+        let rows = this._getData();
+        const updatedRows = [];
+
+        rows = rows.map((r) => {
+          const matches = this.filters.every((f) => f(r));
+          if (matches) {
+            const next = { ...r, ...this.payload, updated_at: new Date().toISOString() };
+            updatedRows.push(next);
+            return next;
+          }
+          return r;
+        });
+
+        this._saveData(rows);
+        if (this.returnSelected) {
+          return this._formatResult(updatedRows, true, updatedRows.length);
+        }
+        return { data: rows, error: null, count: updatedRows.length };
+      }
+
+      if (this.operation === 'delete') {
+        let rows = this._getData();
+        const deletedRows = [];
+        const remaining = [];
+        for (const r of rows) {
+          if (this.filters.every((f) => f(r))) {
+            deletedRows.push(r);
+          } else {
+            remaining.push(r);
+          }
+        }
+        this._saveData(remaining);
+        return { data: this.returnSelected ? deletedRows : null, error: null, count: deletedRows.length };
+      }
+
+      // Default: SELECT
       let rows = [...this._getData()];
+
+      if (this.tableName === 'posts') {
+        const allComments = loadStorage(
+          'post_comments',
+          initialPosts.flatMap((p) => p.post_comments || [])
+        );
+        const allReactions = loadStorage('post_reactions', initialReactions);
+        const allProfiles = loadStorage('profiles', initialProfiles);
+        rows = rows.map((p) => {
+          const embeddedComments = allComments.filter((c) => String(c.post_id) === String(p.id));
+          const mergedComments = [...embeddedComments];
+          (p.post_comments || []).forEach((c) => {
+            if (!mergedComments.some((ec) => ec.id === c.id)) mergedComments.push(c);
+          });
+          const enrichedComments = mergedComments.map((c) => {
+            const cProf = allProfiles.find((pr) => String(pr.id) === String(c.user_id));
+            return {
+              ...c,
+              ...(cProf ? { profiles: { username: cProf.username, avatar_url: cProf.avatar_url || null } } : {}),
+            };
+          });
+          const pProf = allProfiles.find((pr) => String(pr.id) === String(p.user_id));
+          return {
+            ...p,
+            ...(pProf ? { profiles: { username: pProf.username, avatar_url: pProf.avatar_url || null } } : {}),
+            post_comments: enrichedComments,
+            ...(this.selectFields.includes('post_reactions')
+              ? { post_reactions: allReactions.filter((r) => String(r.post_id) === String(p.id)) }
+              : {}),
+          };
+        });
+      }
 
       // Apply filters
       for (const filter of this.filters) {
@@ -801,82 +1005,6 @@ if (!clientInstance) {
     // Direct then-able
     then(resolve, reject) {
       return this._execute().then(resolve, reject);
-    }
-
-    async insert(records) {
-      const list = Array.isArray(records) ? records : [records];
-      const rows = this._getData();
-      const newItems = list.map((item) => ({
-        id: item.id || `gen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        created_at: new Date().toISOString(),
-        ...item,
-      }));
-
-      rows.unshift(...newItems);
-      this._saveData(rows);
-
-      // If inserting comment, update post object if applicable
-      if (this.tableName === 'post_comments') {
-        const posts = loadStorage('posts', initialPosts);
-        const comment = newItems[0];
-        const post = posts.find((p) => p.id === comment.post_id);
-        if (post) {
-          post.post_comments = post.post_comments || [];
-          post.post_comments.unshift(comment);
-          saveStorage('posts', posts);
-        }
-      }
-
-      return { data: Array.isArray(records) ? newItems : newItems[0], error: null };
-    }
-
-    async upsert(record, options = {}) {
-      const rows = this._getData();
-      const item = { ...record };
-      const onConflict = (options.onConflict || '').split(',').map((s) => s.trim()).filter(Boolean);
-
-      let foundIndex = -1;
-      if (onConflict.length > 0) {
-        foundIndex = rows.findIndex((r) => onConflict.every((k) => String(r[k]) === String(item[k])));
-      } else if (item.id) {
-        foundIndex = rows.findIndex((r) => r.id === item.id);
-      }
-
-      if (foundIndex >= 0) {
-        rows[foundIndex] = { ...rows[foundIndex], ...item, updated_at: new Date().toISOString() };
-      } else {
-        item.id = item.id || `gen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        item.created_at = item.created_at || new Date().toISOString();
-        rows.unshift(item);
-      }
-
-      this._saveData(rows);
-      return { data: item, error: null };
-    }
-
-    async update(updates) {
-      let rows = this._getData();
-      let updatedCount = 0;
-
-      rows = rows.map((r) => {
-        const matches = this.filters.every((f) => f(r));
-        if (matches) {
-          updatedCount++;
-          return { ...r, ...updates, updated_at: new Date().toISOString() };
-        }
-        return r;
-      });
-
-      this._saveData(rows);
-      return { data: rows, error: null, count: updatedCount };
-    }
-
-    async delete() {
-      let rows = this._getData();
-      const initialLen = rows.length;
-      rows = rows.filter((r) => !this.filters.every((f) => f(r)));
-      this._saveData(rows);
-      return { data: null, error: null, count: initialLen - rows.length };
     }
   }
 
@@ -928,6 +1056,7 @@ if (!clientInstance) {
             user = {
               id: newId,
               email: trimmed.includes('@') ? trimmed : `${trimmed}@example.com`,
+              password: password || '',
               email_confirmed_at: new Date().toISOString(),
               user_metadata: {
                 username: trimmed.includes('@') ? trimmed.split('@')[0] : trimmed,
@@ -944,6 +1073,12 @@ if (!clientInstance) {
             });
             saveStorage('profiles', profiles);
           }
+        } else if (user.password && password && user.password !== password) {
+          return { data: { user: null, session: null }, error: { message: 'Invalid login credentials.' } };
+        }
+
+        if (!user.email_confirmed_at) {
+          return { data: { user: null, session: null }, error: { message: 'Email not confirmed' } };
         }
 
         currentUser = user;
@@ -955,21 +1090,32 @@ if (!clientInstance) {
       },
 
       signUp: async ({ email, password, options }) => {
+        const trimmedEmail = (email || '').trim().toLowerCase();
+        const users = loadStorage('registered_users', [initialUser]);
+        const existingUser = users.find((u) => u.email.toLowerCase() === trimmedEmail);
+
+        if (existingUser) {
+          return {
+            data: { user: null, session: null },
+            error: { message: 'An account with this email already exists. Please sign in.' },
+          };
+        }
+
         const newId = `user_${Date.now()}`;
-        const username = options?.data?.username || email.split('@')[0];
+        const username = options?.data?.username || trimmedEmail.split('@')[0];
         const phone = options?.data?.phone || null;
 
         const newUser = {
           id: newId,
           email: email.trim(),
-          email_confirmed_at: new Date().toISOString(),
+          password,
+          email_confirmed_at: null,
           user_metadata: {
             username,
             phone,
           },
         };
 
-        const users = loadStorage('registered_users', [initialUser]);
         users.push(newUser);
         saveStorage('registered_users', users);
 
@@ -982,12 +1128,36 @@ if (!clientInstance) {
         });
         saveStorage('profiles', profiles);
 
-        currentUser = newUser;
+        return { data: { user: newUser, session: null }, error: null };
+      },
+
+      verifyDemoEmail: async (email) => {
+        const trimmedEmail = (email || '').trim().toLowerCase();
+        const users = loadStorage('registered_users', [initialUser]);
+        const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
+        let verifiedUser;
+
+        if (idx >= 0) {
+          users[idx] = {
+            ...users[idx],
+            email_confirmed_at: new Date().toISOString(),
+          };
+          saveStorage('registered_users', users);
+          verifiedUser = users[idx];
+        } else {
+          verifiedUser = {
+            ...initialUser,
+            email: trimmedEmail || initialUser.email,
+            email_confirmed_at: new Date().toISOString(),
+          };
+        }
+
+        currentUser = verifiedUser;
         saveStorage('auth_user', currentUser);
         const session = getSessionData().session;
         notifyAuthChange('SIGNED_IN', session);
 
-        return { data: { user: newUser, session }, error: null };
+        return { data: { user: verifiedUser, session }, error: null };
       },
 
       signOut: async () => {

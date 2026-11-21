@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { evaluatePasswordRules } from '../utils/passwordRules';
+import './Login.css';
 import './Register.css';
 
 const Register = () => {
@@ -22,6 +24,8 @@ const Register = () => {
   const [usernameStatus, setUsernameStatus] = useState('idle');
   // useRef so the timer never causes re-renders or stale closures
   const usernameTimerRef = useRef(null);
+
+  const passwordCheck = evaluatePasswordRules(form.password);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -87,12 +91,12 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match.');
+    if (!passwordCheck.allMet) {
+      setError('Password must be at least 8 characters, include 1 uppercase letter, and 1 special character.');
       return;
     }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
     // Username format check (always runs regardless of background check status)
@@ -139,7 +143,9 @@ const Register = () => {
       // (handle_new_user) on the Supabase backend to avoid RLS violations.
 
       // 2. Navigate to verification screen
-      navigate('/verify-email', { state: { email: form.email } });
+      navigate('/verify-email', {
+        state: { email: form.email.trim(), isDemoMode: !isSupabaseConfigured },
+      });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -273,11 +279,13 @@ const Register = () => {
                   id="password"
                   type={showPass ? 'text' : 'password'}
                   name="password"
-                  placeholder="Minimum 8 characters"
+                  placeholder="Min 8 chars, 1 uppercase, 1 special char"
                   value={form.password}
                   onChange={handleChange}
                   required
                   autoComplete="new-password"
+                  aria-describedby="register-password-rules"
+                  className={!passwordCheck.allMet ? 'input-taken' : 'input-available'}
                 />
                 <button
                   type="button"
@@ -288,12 +296,20 @@ const Register = () => {
                   {showPass ? '🙈' : '👁'}
                 </button>
               </div>
+              <ul id="register-password-rules" className="password-rules-list" aria-live="polite">
+                {passwordCheck.results.map((rule) => (
+                  <li key={rule.key} className={`password-rule-item ${rule.met ? 'met' : 'unmet'}`}>
+                    <span className="rule-icon">{rule.met ? '✓' : '✕'}</span>
+                    <span>{rule.label}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {/* Confirm Password */}
             <div className="field">
               <label htmlFor="confirmPassword">Confirm Password</label>
-              <div className="input-wrap">
+              <div className="input-wrap input-wrap--password">
                 <input
                   id="confirmPassword"
                   type={showPass ? 'text' : 'password'}
@@ -304,13 +320,24 @@ const Register = () => {
                   required
                   autoComplete="new-password"
                   className={
-                    form.confirmPassword && form.password !== form.confirmPassword
-                      ? 'input-taken' : ''
+                    form.confirmPassword
+                      ? (form.password === form.confirmPassword ? 'input-available' : 'input-taken')
+                      : ''
                   }
                 />
+                <button
+                  type="button"
+                  className="toggle-pass"
+                  onClick={() => setShowPass(!showPass)}
+                  tabIndex={-1}
+                >
+                  {showPass ? '🙈' : '👁'}
+                </button>
               </div>
-              {form.confirmPassword && form.password !== form.confirmPassword && (
-                <span className="hint taken">Passwords do not match</span>
+              {form.confirmPassword && (
+                <span className={`hint ${form.password === form.confirmPassword ? 'available' : 'taken'}`}>
+                  {form.password === form.confirmPassword ? '✓ Passwords match' : '✕ Passwords do not match'}
+                </span>
               )}
             </div>
 

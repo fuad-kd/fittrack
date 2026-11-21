@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import gsap from 'gsap';
 import {
   LayoutDashboard,
@@ -22,7 +22,7 @@ import {
   Scale,
   Brain,
   Cpu,
-  ThumbsUp,
+  Heart,
   ThumbsDown,
   MessageSquare,
   Play,
@@ -42,7 +42,9 @@ import {
   RotateCcw,
   Trophy,
   Zap,
-  Maximize2
+  Maximize2,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -250,6 +252,8 @@ const Dashboard = () => {
   const [socialHighlights, setSocialHighlights] = useState([]);
   const [quickCommentText, setQuickCommentText] = useState({});
   const [commentSubmitting, setCommentSubmitting] = useState({});
+  const [quickReactionPending, setQuickReactionPending] = useState({});
+  const [socialHighlightError, setSocialHighlightError] = useState('');
 
   /* ── 7. Location / Map State ── */
   const [mapQuery, setMapQuery] = useState('Equinox Fitness');
@@ -268,7 +272,11 @@ const Dashboard = () => {
         supabase.from('workout_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('workout_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }),
         supabase.from('progress_entries').select('*').eq('user_id', user.id).order('entry_date', { ascending: false }),
-        supabase.from('posts').select('*, post_comments(*)').order('created_at', { ascending: false }).limit(3),
+        supabase
+          .from('posts')
+          .select('*, profiles:user_id ( username, avatar_url ), post_comments(*, profiles:user_id ( username, avatar_url ))')
+          .order('created_at', { ascending: false })
+          .limit(3),
         supabase.from('exercises').select('*')
       ]);
 
@@ -467,20 +475,123 @@ const Dashboard = () => {
       });
       setTfliteResult(inferenceResult);
 
-      // 6. Social Highlights
-      setSocialHighlights(postsList.map(post => ({
-        ...post,
-        comments: post.post_comments ? post.post_comments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : []
-      })));
+      // 6. Social Highlights (with post_reactions persisted state & profile joins)
+      if (postsRes.error) {
+        setSocialHighlightError(postsRes.error.message || 'Could not load community highlights.');
+      } else {
+        const highlightIds = postsList.map((p) => p.id);
+        let highlightReactions = [];
+        let reactionsErr = false;
+        if (highlightIds.length > 0) {
+          const { data: rData, error: rErr } = await supabase
+            .from('post_reactions')
+            .select('id, post_id, user_id, reaction_type')
+            .in('post_id', highlightIds);
+          if (rErr) {
+            reactionsErr = true;
+          } else {
+            highlightReactions = rData || [];
+          }
+        }
+
+        setSocialHighlights(
+          postsList.map((post) => {
+            const postReactions = highlightReactions.filter((r) => String(r.post_id) === String(post.id));
+            const userReactionRow = postReactions.find((r) => String(r.user_id) === String(user.id));
+            const likesCount =
+              isSupabaseConfigured && !reactionsErr
+                ? postReactions.filter((r) => r.reaction_type === 'like').length
+                : post.likes_count || 0;
+            const dislikesCount =
+              isSupabaseConfigured && !reactionsErr
+                ? postReactions.filter((r) => r.reaction_type === 'dislike').length
+                : post.dislikes_count || 0;
+
+            return {
+              ...post,
+              likes_count: likesCount,
+              dislikes_count: dislikesCount,
+              userReaction: userReactionRow ? userReactionRow.reaction_type : null,
+              comments: post.post_comments
+                ? [...post.post_comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                : [],
+            };
+          })
+        );
+      }
 
     } catch (err) {
       console.error('[FitTrack Dashboard] Error loading modules:', err);
     }
   }, [user, userHeightCm, unitSystem]);
 
+  const refreshSocialHighlights = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data: postsData, error: postsErr } = await supabase
+        .from('posts')
+        .select('*, profiles:user_id ( username, avatar_url ), post_comments(*, profiles:user_id ( username, avatar_url ))')
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (postsErr) {
+        setSocialHighlightError(postsErr.message || 'Could not refresh community highlights.');
+        return;
+      }
+
+      if (!postsData) return;
+
+      const highlightIds = postsData.map((p) => p.id);
+      let highlightReactions = [];
+      let reactionsErr = false;
+
+      if (highlightIds.length > 0) {
+        const { data: rData, error: rErr } = await supabase
+          .from('post_reactions')
+          .select('id, post_id, user_id, reaction_type')
+          .in('post_id', highlightIds);
+        if (rErr) reactionsErr = true;
+        else highlightReactions = rData || [];
+      }
+
+      setSocialHighlights(
+        postsData.map((post) => {
+          const postReactions = highlightReactions.filter((r) => String(r.post_id) === String(post.id));
+          const userReactionRow = postReactions.find((r) => String(r.user_id) === String(user.id));
+          const likesCount =
+            isSupabaseConfigured && !reactionsErr
+              ? postReactions.filter((r) => r.reaction_type === 'like').length
+              : post.likes_count || 0;
+          const dislikesCount =
+            isSupabaseConfigured && !reactionsErr
+              ? postReactions.filter((r) => r.reaction_type === 'dislike').length
+              : post.dislikes_count || 0;
+
+          return {
+            ...post,
+            likes_count: likesCount,
+            dislikes_count: dislikesCount,
+            userReaction: userReactionRow ? userReactionRow.reaction_type : null,
+            comments: post.post_comments
+              ? [...post.post_comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              : [],
+          };
+        })
+      );
+    } catch (err) {
+      console.warn('[FitTrack Dashboard] Could not refresh social highlights:', err);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  useEffect(() => {
+    if (activeTab === 'home') {
+      refreshSocialHighlights();
+    }
+  }, [activeTab, refreshSocialHighlights]);
 
   // GSAP Animations when viewing Overview
   useEffect(() => {
@@ -654,48 +765,169 @@ const Dashboard = () => {
     }
   };
 
-  /* ── Social Feed Quick Like ── */
-  const handleQuickLike = async (postId, currentLikes) => {
-    const updated = (currentLikes || 0) + 1;
-    setSocialHighlights(prev => prev.map(p => p.id === postId ? { ...p, likes_count: updated } : p));
-    await supabase.from('posts').update({ likes_count: updated }).eq('id', postId);
-  };
+  /* ── Social Highlights Optimistic Reaction (Like / Unlike / Dislike) ── */
+  const handleQuickReaction = async (postId, type) => {
+    if (!user || quickReactionPending[postId]) return;
+    const target = socialHighlights.find((p) => p.id === postId);
+    if (!target) return;
 
-  /* ── Social Feed Quick Dislike ── */
-  const handleQuickDislike = async (postId, currentDislikes) => {
-    const updated = (currentDislikes || 0) + 1;
-    setSocialHighlights(prev => prev.map(p => p.id === postId ? { ...p, dislikes_count: updated } : p));
-    await supabase.from('posts').update({ dislikes_count: updated }).eq('id', postId);
-  };
+    setSocialHighlightError('');
+    setQuickReactionPending((prev) => ({ ...prev, [postId]: true }));
 
-  /* ── Social Feed Quick Comment ── */
-  const handleQuickComment = async (postId) => {
-    const text = (quickCommentText[postId] || '').trim();
-    if (!text || !user) return;
-
-    setCommentSubmitting(prev => ({ ...prev, [postId]: true }));
-    const newComment = {
-      post_id: postId,
-      user_id: user.id,
-      username: profile?.username || 'athlete',
-      content: text,
-      created_at: new Date().toISOString()
+    const prevSnapshot = {
+      userReaction: target.userReaction || null,
+      likes_count: target.likes_count || 0,
+      dislikes_count: target.dislikes_count || 0,
     };
 
-    const { data, error } = await supabase.from('post_comments').insert(newComment);
-    if (!error) {
-      setSocialHighlights(prev => prev.map(p => {
-        if (p.id === postId) {
-          return {
-            ...p,
-            comments: [data || newComment, ...(p.comments || [])]
-          };
-        }
-        return p;
-      }));
-      setQuickCommentText(prev => ({ ...prev, [postId]: '' }));
+    const currentReaction = prevSnapshot.userReaction;
+    let nextReaction = null;
+    let nextLikes = prevSnapshot.likes_count;
+    let nextDislikes = prevSnapshot.dislikes_count;
+
+    if (currentReaction === type) {
+      nextReaction = null;
+      if (type === 'like') nextLikes = Math.max(0, nextLikes - 1);
+      else nextDislikes = Math.max(0, nextDislikes - 1);
+    } else if (currentReaction && currentReaction !== type) {
+      nextReaction = type;
+      if (type === 'like') {
+        nextLikes += 1;
+        nextDislikes = Math.max(0, nextDislikes - 1);
+      } else {
+        nextDislikes += 1;
+        nextLikes = Math.max(0, nextLikes - 1);
+      }
+    } else {
+      nextReaction = type;
+      if (type === 'like') nextLikes += 1;
+      else nextDislikes += 1;
     }
-    setCommentSubmitting(prev => ({ ...prev, [postId]: false }));
+
+    setSocialHighlights((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              userReaction: nextReaction,
+              likes_count: nextLikes,
+              dislikes_count: nextDislikes,
+            }
+          : p
+      )
+    );
+
+    try {
+      if (nextReaction === null) {
+        const { error } = await supabase
+          .from('post_reactions')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('post_reactions')
+          .upsert(
+            { post_id: postId, user_id: user.id, reaction_type: nextReaction },
+            { onConflict: 'post_id,user_id' }
+          );
+        if (error) throw error;
+      }
+
+      if (!isSupabaseConfigured) {
+        await supabase
+          .from('posts')
+          .update({ likes_count: nextLikes, dislikes_count: nextDislikes })
+          .eq('id', postId);
+      }
+    } catch (err) {
+      setSocialHighlights((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, ...prevSnapshot } : p))
+      );
+      setSocialHighlightError(err.message || 'Could not save reaction. Change reverted.');
+    } finally {
+      setQuickReactionPending((prev) => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  /* ── Social Feed Quick Comment (Optimistic + Form Safe) ── */
+  const handleQuickComment = async (e, postId) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const text = (quickCommentText[postId] || '').trim();
+    if (!text || !user || commentSubmitting[postId]) return;
+
+    setSocialHighlightError('');
+    setCommentSubmitting((prev) => ({ ...prev, [postId]: true }));
+
+    const authorName =
+      profile?.username || user?.user_metadata?.username || user?.email?.split('@')[0] || 'athlete';
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const optimisticComment = {
+      id: tempId,
+      post_id: postId,
+      user_id: user.id,
+      username: authorName,
+      profiles: {
+        username: authorName,
+        avatar_url: profile?.avatar_url || null,
+      },
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+
+    setQuickCommentText((prev) => ({ ...prev, [postId]: '' }));
+    setSocialHighlights((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, comments: [optimisticComment, ...(p.comments || [])] } : p
+      )
+    );
+
+    try {
+      const { data: confirmedComment, error } = await supabase
+        .from('post_comments')
+        .insert({
+          post_id: postId,
+          user_id: user.id,
+          username: authorName,
+          content: text,
+        })
+        .select('*, profiles:user_id ( username, avatar_url )')
+        .single();
+
+      if (error) throw error;
+
+      if (confirmedComment) {
+        const hydratedComment = {
+          ...confirmedComment,
+          profiles: confirmedComment.profiles || {
+            username: authorName,
+            avatar_url: profile?.avatar_url || null,
+          },
+        };
+        setSocialHighlights((prev) =>
+          prev.map((p) => {
+            if (p.id !== postId) return p;
+            const filtered = (p.comments || []).filter(
+              (c) => c.id !== tempId && c.id !== hydratedComment.id
+            );
+            return { ...p, comments: [hydratedComment, ...filtered] };
+          })
+        );
+      }
+    } catch (err) {
+      setSocialHighlights((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, comments: (p.comments || []).filter((c) => c.id !== tempId) }
+            : p
+        )
+      );
+      setQuickCommentText((prev) => ({ ...prev, [postId]: text }));
+      setSocialHighlightError(err.message || 'Could not post comment. Please try again.');
+    } finally {
+      setCommentSubmitting((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   /* ── Geolocation for Gym Map ── */
@@ -2128,20 +2360,45 @@ const Dashboard = () => {
                 </div>
               </div>
 
+              {socialHighlightError && (
+                <div className="sh-error-banner" role="alert">
+                  <AlertCircle size={14} />
+                  <span>{socialHighlightError}</span>
+                  <button
+                    type="button"
+                    className="sh-error-close"
+                    onClick={() => setSocialHighlightError('')}
+                    aria-label="Dismiss"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              )}
+
               <div className="social-highlights-grid">
                 {socialHighlights.map((post) => {
                   const comments = post.comments || [];
-                  const isSubmitting = commentSubmitting[post.id];
+                  const isSubmitting = !!commentSubmitting[post.id];
+                  const isReactionBusy = !!quickReactionPending[post.id];
+                  const isLiked = post.userReaction === 'like';
+                  const isDisliked = post.userReaction === 'dislike';
+                  const draft = quickCommentText[post.id] || '';
+                  const postUsername = post.profiles?.username || post.username || 'athlete';
+                  const postAvatarUrl = post.profiles?.avatar_url || null;
 
                   return (
                     <div key={post.id} className="social-highlight-card">
                       <div className="sh-card-header">
                         <div className="sh-author-row">
                           <div className="sh-avatar">
-                            {(post.username || 'U')[0].toUpperCase()}
+                            {postAvatarUrl ? (
+                              <img src={postAvatarUrl} alt={postUsername} className="sh-avatar-img" />
+                            ) : (
+                              postUsername[0].toUpperCase()
+                            )}
                           </div>
                           <div>
-                            <span className="sh-username">@{post.username || 'athlete'}</span>
+                            <span className="sh-username">@{postUsername}</span>
                             <span className="sh-time">
                               {new Date(post.created_at).toLocaleDateString()}
                             </span>
@@ -2149,19 +2406,25 @@ const Dashboard = () => {
                         </div>
 
                         <div className="sh-reaction-chips">
-                          <button 
-                            className="btn-reaction like"
-                            onClick={() => handleQuickLike(post.id, post.likes_count)}
-                            title="Like post"
+                          <button
+                            type="button"
+                            className={`btn-reaction like ${isLiked ? 'active' : ''}`}
+                            onClick={() => handleQuickReaction(post.id, 'like')}
+                            disabled={isReactionBusy}
+                            aria-pressed={isLiked}
+                            title={isLiked ? 'Unlike post' : 'Like post'}
                           >
-                            <ThumbsUp size={13} />
+                            <Heart size={13} fill={isLiked ? 'currentColor' : 'none'} />
                             <span>{post.likes_count || 0}</span>
                           </button>
 
-                          <button 
-                            className="btn-reaction dislike"
-                            onClick={() => handleQuickDislike(post.id, post.dislikes_count)}
-                            title="Dislike post"
+                          <button
+                            type="button"
+                            className={`btn-reaction dislike ${isDisliked ? 'active' : ''}`}
+                            onClick={() => handleQuickReaction(post.id, 'dislike')}
+                            disabled={isReactionBusy}
+                            aria-pressed={isDisliked}
+                            title={isDisliked ? 'Remove dislike' : 'Dislike post'}
                           >
                             <ThumbsDown size={13} />
                             <span>{post.dislikes_count || 0}</span>
@@ -2173,7 +2436,11 @@ const Dashboard = () => {
 
                       {post.media_url && (
                         <div className="sh-media-wrap">
-                          <img src={post.media_url} alt="Shared post" className="sh-img" loading="lazy" />
+                          {post.media_type === 'video' ? (
+                            <video src={post.media_url} controls className="sh-img" />
+                          ) : (
+                            <img src={post.media_url} alt="Shared post" className="sh-img" loading="lazy" />
+                          )}
                         </div>
                       )}
 
@@ -2186,30 +2453,35 @@ const Dashboard = () => {
                         <div className="comments-mini-list">
                           {comments.slice(0, 2).map((comm) => (
                             <div key={comm.id} className="comm-bubble">
-                              <span className="comm-author">@{comm.username}:</span>
+                              <span className="comm-author">
+                                @{comm.profiles?.username || comm.username || 'athlete'}:
+                              </span>
                               <span className="comm-text">{comm.content}</span>
                             </div>
                           ))}
                         </div>
 
-                        <div className="quick-comment-row">
-                          <input 
+                        <form
+                          className="quick-comment-row"
+                          onSubmit={(e) => handleQuickComment(e, post.id)}
+                        >
+                          <input
                             type="text"
                             placeholder="Write a quick comment..."
-                            value={quickCommentText[post.id] || ''}
-                            onChange={(e) => setQuickCommentText({ ...quickCommentText, [post.id]: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleQuickComment(post.id);
-                            }}
+                            value={draft}
+                            onChange={(e) =>
+                              setQuickCommentText((prev) => ({ ...prev, [post.id]: e.target.value }))
+                            }
+                            disabled={isSubmitting}
                           />
-                          <button 
+                          <button
+                            type="submit"
                             className="btn-send-comm"
-                            onClick={() => handleQuickComment(post.id)}
-                            disabled={isSubmitting || !(quickCommentText[post.id] || '').trim()}
+                            disabled={isSubmitting || !draft.trim()}
                           >
-                            <Send size={13} />
+                            {isSubmitting ? <Loader2 size={13} className="spinning" /> : <Send size={13} />}
                           </button>
-                        </div>
+                        </form>
                       </div>
                     </div>
                   );
@@ -2736,7 +3008,7 @@ const Dashboard = () => {
         {activeTab === 'workouts' && <Workouts />}
         {activeTab === 'log' && <WorkoutLog />}
         {activeTab === 'progress' && <ProgressTracker />}
-        {activeTab === 'social' && <SocialFeed user={user} />}
+        {activeTab === 'social' && <SocialFeed user={user} profile={profile} />}
         {activeTab === 'map' && <GymMap />}
       </main>
     </div>

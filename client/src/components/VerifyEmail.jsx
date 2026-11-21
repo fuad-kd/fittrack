@@ -1,20 +1,44 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import './VerifyEmail.css';
 
 const VerifyEmail = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const email     = location.state?.email || '';
+  const isDemoMode = location.state?.isDemoMode ?? !isSupabaseConfigured;
 
   const [resending, setResending]   = useState(false);
   const [resent, setResent]         = useState(false);
+  const [verifying, setVerifying]   = useState(false);
   const [cooldown, setCooldown]     = useState(0);
   const [error, setError]           = useState('');
 
+  const handleDemoVerify = async () => {
+    setVerifying(true);
+    setError('');
+    try {
+      if (typeof supabase.auth.verifyDemoEmail === 'function') {
+        const { error: verifyError } = await supabase.auth.verifyDemoEmail(email);
+        if (verifyError) throw verifyError;
+      }
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setError(err.message || 'Could not verify demo account.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const handleResend = async () => {
     if (cooldown > 0) return;
+
+    if (isDemoMode) {
+      setResent(true);
+      return;
+    }
+
     setResending(true);
     setError('');
 
@@ -77,11 +101,11 @@ const VerifyEmail = () => {
             </div>
             <div className="verify-bullet">
               <span className="vb-icon">📅</span>
-              <span>Log every session with notes & duration</span>
+              <span>Log every session with notes &amp; duration</span>
             </div>
             <div className="verify-bullet">
               <span className="vb-icon">📊</span>
-              <span>Track body metrics & progress photos</span>
+              <span>Track body metrics &amp; progress photos</span>
             </div>
           </div>
         </div>
@@ -97,40 +121,75 @@ const VerifyEmail = () => {
           </div>
 
           <p className="form-eyebrow">Account Setup</p>
-          <h2 className="form-title">Check<br />Your Email</h2>
+          <h2 className="form-title">
+            {isDemoMode ? <>Verify<br />Account</> : <>Check<br />Your Email</>}
+          </h2>
           <div className="gold-rule" />
 
           {/* Email display */}
           <div className="verify-email-box">
             <span className="verify-email-icon">📧</span>
             <div>
-              <p className="verify-sent-text">We sent a confirmation link to</p>
+              <p className="verify-sent-text">
+                {isDemoMode
+                  ? 'Account pending local verification for'
+                  : 'We sent a confirmation link to'}
+              </p>
               {email && <p className="verify-email-addr">{email}</p>}
             </div>
           </div>
 
-          <p className="verify-instruction">
-            Click the link in that email to verify your account and start your fitness journey.
-          </p>
-          <p className="verify-spam-note">
-            Don't see it? Check your spam or junk folder.
-          </p>
+          {isDemoMode ? (
+            <div className="demo-verify-notice">
+              <p className="demo-verify-title">Local Demo Mode Active</p>
+              <p className="demo-verify-desc">
+                No external email server or Supabase SMTP key is connected, so confirmation emails are not delivered to external inboxes. Click below to verify immediately and enter your dashboard.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="verify-instruction">
+                Click the link in that email to verify your account and start your fitness journey.
+              </p>
+              <p className="verify-spam-note">
+                Don't see it? Check your spam or junk folder.
+              </p>
+            </>
+          )}
 
           {error  && <div className="error-banner">⚠️ {error}</div>}
-          {resent && <div className="success-banner">✅ Confirmation email resent!</div>}
+          {resent && (
+            <div className="success-banner">
+              {isDemoMode
+                ? '✅ Simulated verification ready — click "Verify Email & Enter Dashboard" below.'
+                : '✅ Confirmation email resent!'}
+            </div>
+          )}
 
           <div className="verify-actions">
-            <button
-              className="btn-submit"
-              onClick={handleResend}
-              disabled={resending || cooldown > 0}
-            >
-              {resending
-                ? 'Sending…'
-                : cooldown > 0
-                ? `Resend in ${cooldown}s`
-                : 'Resend Email'}
-            </button>
+            {isDemoMode ? (
+              <button
+                type="button"
+                className="btn-submit"
+                onClick={handleDemoVerify}
+                disabled={verifying}
+              >
+                {verifying ? 'Verifying…' : '✓ Verify Email & Enter Dashboard'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-submit"
+                onClick={handleResend}
+                disabled={resending || cooldown > 0}
+              >
+                {resending
+                  ? 'Sending…'
+                  : cooldown > 0
+                  ? `Resend in ${cooldown}s`
+                  : 'Resend Email'}
+              </button>
+            )}
 
             <div className="form-footer">
               Already verified?

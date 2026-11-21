@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { evaluatePasswordRules } from '../utils/passwordRules';
 import './Login.css';
 
 const Login = () => {
@@ -12,6 +13,8 @@ const Login = () => {
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
   const [showPass, setShowPass]     = useState(false);
+
+  const passwordCheck = evaluatePasswordRules(password);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -157,6 +160,14 @@ const Login = () => {
                   {showPass ? '🙈' : '👁'}
                 </button>
               </div>
+              <ul className="password-rules-list" aria-live="polite">
+                {passwordCheck.results.map((rule) => (
+                  <li key={rule.key} className={`password-rule-item ${rule.met ? 'met' : 'unmet'}`}>
+                    <span className="rule-icon">{rule.met ? '✓' : '✕'}</span>
+                    <span>{rule.label}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div className="options-row">
