@@ -1,7 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const supabaseUrl = (
+  import.meta.env.SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL ||
+  ''
+).trim();
+const supabaseAnonKey = (
+  import.meta.env.SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  ''
+).trim();
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -1039,7 +1047,7 @@ if (!clientInstance) {
           data: { user: null, session: null },
           error: {
             message:
-              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+              'Supabase Auth is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in your environment variables.',
           },
         };
       },
@@ -1049,7 +1057,7 @@ if (!clientInstance) {
           data: { user: null, session: null },
           error: {
             message:
-              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+              'Supabase Auth is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in your environment variables.',
           },
         };
       },
@@ -1059,7 +1067,7 @@ if (!clientInstance) {
           data: { user: null, session: null },
           error: {
             message:
-              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+              'Supabase Auth is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in your environment variables.',
           },
         };
       },
@@ -1076,7 +1084,7 @@ if (!clientInstance) {
           data: null,
           error: {
             message:
-              'Supabase Auth is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.',
+              'Supabase Auth is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in your environment variables.',
           },
         };
       },
