@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import YouTubeEmbed from './YouTubeEmbed';
+import ImageLightboxPortal from './ImageLightboxPortal';
 import './ExerciseList.css';
 
 const PAGE_SIZE = 5;
@@ -77,7 +78,7 @@ export default function ExerciseList({ plan, muscleGroups }) {
   const [previewEx,    setPreviewEx]    = useState(null); // exercise whose video is shown
   const [anatomyEx,    setAnatomyEx]    = useState(null); // exercise whose anatomy diagram is shown
   const [activeAnatomyTab, setActiveAnatomyTab] = useState('');
-  const [lightboxImg,  setLightboxImg]  = useState(null);
+  const [lightboxState, setLightboxState] = useState(null);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
 
   /* ── Fetch exercises ── */
@@ -497,19 +498,49 @@ export default function ExerciseList({ plan, muscleGroups }) {
                     </div>
 
                     <div className="anatomy-drawer-content">
-                      <div 
+                      <div
                         className="anatomy-image-wrap"
-                        onClick={() => setLightboxImg({ src: activeInfo.image, title: activeInfo.title, subtitle: activeInfo.subtitle })}
-                        title="Click to view full image in high resolution"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          const startIdx = Math.max(0, infographics.findIndex((i) => i.id === activeInfo.id));
+                          setLightboxState({
+                            items: infographics.map((info) => ({
+                              src: info.image,
+                              title: `${ex.name} — ${info.title}`,
+                              subtitle: info.subtitle,
+                              description: info.summary,
+                              badge: info.badge || 'High-Resolution Anatomical Diagram',
+                            })),
+                            index: startIdx,
+                          });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            const startIdx = Math.max(0, infographics.findIndex((i) => i.id === activeInfo.id));
+                            setLightboxState({
+                              items: infographics.map((info) => ({
+                                src: info.image,
+                                title: `${ex.name} — ${info.title}`,
+                                subtitle: info.subtitle,
+                                description: info.summary,
+                                badge: info.badge || 'High-Resolution Anatomical Diagram',
+                              })),
+                              index: startIdx,
+                            });
+                          }
+                        }}
+                        title="Click to inspect full image in high resolution"
                       >
-                        <img 
-                          src={activeInfo.image} 
-                          alt={activeInfo.title} 
-                          className="drawer-anatomy-img" 
+                        <img
+                          src={activeInfo.image}
+                          alt={activeInfo.title}
+                          className="drawer-anatomy-img"
                         />
                         <div className="anatomy-zoom-hint">
                           <Maximize2 size={14} />
-                          <span>Click to Zoom</span>
+                          <span>Click to Inspect Full View</span>
                         </div>
                       </div>
 
@@ -597,26 +628,14 @@ export default function ExerciseList({ plan, muscleGroups }) {
         </div>
       )}
 
-      {/* Lightbox Modal */}
-      {lightboxImg && (
-        <div className="lightbox-backdrop" onClick={() => setLightboxImg(null)}>
-          <div className="lightbox-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="lightbox-topbar">
-              <div className="lightbox-titles">
-                <span className="lightbox-badge">High-Resolution Anatomical Diagram</span>
-                <h3>{lightboxImg.title}</h3>
-                {lightboxImg.subtitle && <p>{lightboxImg.subtitle}</p>}
-              </div>
-              <button className="lightbox-close-btn" onClick={() => setLightboxImg(null)} title="Close">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="lightbox-image-viewport">
-              <img src={lightboxImg.src} alt={lightboxImg.title} className="lightbox-full-img" />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Fullscreen Portal Lightbox */}
+      <ImageLightboxPortal
+        isOpen={Boolean(lightboxState)}
+        items={lightboxState?.items || []}
+        currentIndex={lightboxState?.index || 0}
+        onIndexChange={(idx) => setLightboxState((prev) => (prev ? { ...prev, index: idx } : prev))}
+        onClose={() => setLightboxState(null)}
+      />
     </div>
   );
 }

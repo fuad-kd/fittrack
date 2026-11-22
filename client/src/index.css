@@ -26,27 +26,218 @@ html, body {
   min-height: 100vh;
 }
 
-/* Google Maps Platform Quota Notice Banner */
-.gmp-quota-banner {
-  position: sticky;
-  top: 0;
+/* Fullscreen Portal Lightbox (rendered in document.body above all modals/transforms) */
+.ft-portal-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
   z-index: 9999;
-  background-color: #fffbeb;
-  border-bottom: 1px solid #fde68a;
-  color: #78350f;
-  padding: 0.625rem 1rem;
-  font-size: 0.85rem;
-  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: ftPortalFadeIn 0.18s ease;
+}
+
+.ft-portal-lightbox-shell {
+  width: 100%;
+  max-width: 96vw;
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(11, 15, 25, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+}
+
+.ft-portal-lightbox-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.35rem;
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ft-portal-lightbox-titles {
+  min-width: 0;
+}
+
+.ft-portal-lightbox-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+}
+
+.ft-portal-lightbox-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+}
+
+.ft-portal-lightbox-counter {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+}
+
+.ft-portal-lightbox-titles h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.3;
+}
+
+.ft-portal-lightbox-titles p {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.ft-portal-lightbox-close {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ft-portal-lightbox-close:hover {
+  background: rgba(244, 63, 94, 0.28);
+  border-color: rgba(244, 63, 94, 0.6);
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.ft-portal-lightbox-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  background: #04060b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 3.5rem;
+  overflow: hidden;
+}
+
+.ft-portal-lightbox-img {
+  max-height: 85vh;
+  max-width: 92vw;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  user-select: none;
+}
+
+.ft-portal-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: all 0.18s ease;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.ft-portal-lightbox-nav.prev {
+  left: 14px;
+}
+
+.ft-portal-lightbox-nav.next {
+  right: 14px;
+}
+
+.ft-portal-lightbox-nav:hover {
+  background: #f59e0b;
+  border-color: #fde68a;
+  color: #07090e;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.ft-portal-lightbox-footer {
+  padding: 0.75rem 1.35rem;
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ft-portal-lightbox-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: #cbd5e1;
   text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.gmp-quota-banner a {
-  color: #451a03;
-  font-weight: 600;
-  text-decoration: underline;
+.ft-portal-lightbox-hints {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-size: 0.74rem;
+  color: #64748b;
 }
 
-.gmp-quota-banner a:hover {
-  color: #92400e;
+@media (max-width: 640px) {
+  .ft-portal-lightbox-viewport {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .ft-portal-lightbox-nav {
+    width: 36px;
+    height: 36px;
+  }
+
+  .ft-portal-lightbox-nav.prev {
+    left: 6px;
+  }
+
+  .ft-portal-lightbox-nav.next {
+    right: 6px;
+  }
+}
+
+@keyframes ftPortalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

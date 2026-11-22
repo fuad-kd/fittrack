@@ -64,9 +64,49 @@ import SocialFeed from './SocialFeed';
 import GymMap from './GymMap';
 import GoogleGymLocator, { GoogleMapsProvider } from './GoogleGymLocator';
 import YouTubeEmbed from './YouTubeEmbed';
+import ImageLightboxPortal from './ImageLightboxPortal';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { runTFLiteInference } from '../utils/tfliteModel';
 import './Dashboard.css';
+
+const PUSHUP_PROTOCOL_LIGHTBOX_ITEMS = [
+  {
+    src: '/assets/aistudio/images__1__f41e5def.jpg',
+    title: 'Push-Up Mastery: 4 Variations Protocol',
+    subtitle: 'Elbows-In, Wide-Grip, Shoulder-Width & Pike Push-Up',
+    badge: '1 / 6 • Variations Overview',
+  },
+  {
+    src: '/assets/aistudio/images__5__692e1d52.jpg',
+    title: 'Bodyweight Push-Up: Anatomical Muscle Activation',
+    subtitle: 'Anterior Deltoid, Upper/Lower Pectoralis Major & Triceps Brachii',
+    badge: '2 / 6 • Medical Anatomy',
+  },
+  {
+    src: '/assets/diagrams/elbows_in_pushup_diagram.jpg',
+    title: '3D Anatomical Elbows-In Push-Up Diagram',
+    subtitle: 'Start Plank vs Bottom Contracted Position — Vivid Red Highlighted Triceps Brachii',
+    badge: '3 / 6 • 3D Triceps Focus',
+  },
+  {
+    src: '/assets/diagrams/wide_grip_pushup_diagram.jpg',
+    title: '3D Anatomical Wide-Grip Push-Up Diagram',
+    subtitle: 'Wide Starting Position vs Floor-Level Deep Concentric Stretch',
+    badge: '4 / 6 • 3D Outer Chest',
+  },
+  {
+    src: '/assets/diagrams/pike_pushup_diagram.jpg',
+    title: '3D Anatomical Pike Push-Up Diagram',
+    subtitle: 'Inverted V Starting Position vs Diagonal Head Descent — Red Deltoids',
+    badge: '5 / 6 • 3D Shoulder Power',
+  },
+  {
+    src: '/assets/aistudio/images_cb48d6e2.jpg',
+    title: 'Push-Up Biomechanics & Kinetic Grips Guide',
+    subtitle: 'Torque Vectors, Joint Angles & Muscle Focus',
+    badge: '6 / 6 • Force Vectors',
+  },
+];
 
 const NAV_ITEMS = [
   { key: 'home',      label: 'Overview',     icon: LayoutDashboard },
@@ -1894,11 +1934,7 @@ const Dashboard = () => {
                         <div className="proto-diagram-card">
                           <div 
                             className="proto-diagram-img-wrap"
-                            onClick={() => setDashboardLightbox({
-                              src: '/assets/aistudio/images__1__f41e5def.jpg',
-                              title: 'Push-Up Mastery: 4 Variations Protocol',
-                              subtitle: 'Elbows-In, Wide-Grip, Shoulder-Width & Pike Push-Up'
-                            })}
+                            onClick={() => setDashboardLightbox({ items: PUSHUP_PROTOCOL_LIGHTBOX_ITEMS, index: 0 })}
                             title="Click to zoom high-resolution variations guide"
                           >
                             <img 
@@ -1960,11 +1996,7 @@ const Dashboard = () => {
                         <div className="proto-diagram-card">
                           <div 
                             className="proto-diagram-img-wrap"
-                            onClick={() => setDashboardLightbox({
-                              src: '/assets/aistudio/images__5__692e1d52.jpg',
-                              title: 'Bodyweight Push-Up: Anatomical Muscle Activation',
-                              subtitle: 'Anterior Deltoid, Upper/Lower Pectoralis Major & Triceps Brachii'
-                            })}
+                            onClick={() => setDashboardLightbox({ items: PUSHUP_PROTOCOL_LIGHTBOX_ITEMS, index: 1 })}
                             title="Click to zoom high-resolution anatomical chart"
                           >
                             <img 
@@ -2001,11 +2033,7 @@ const Dashboard = () => {
                         <div className="proto-diagram-card">
                           <div 
                             className="proto-diagram-img-wrap"
-                            onClick={() => setDashboardLightbox({
-                              src: '/assets/diagrams/elbows_in_pushup_diagram.jpg',
-                              title: '3D Anatomical Elbows-In Push-Up Diagram',
-                              subtitle: 'Start Plank vs Bottom Contracted Position — Vivid Red Highlighted Triceps Brachii'
-                            })}
+                            onClick={() => setDashboardLightbox({ items: PUSHUP_PROTOCOL_LIGHTBOX_ITEMS, index: 2 })}
                             title="Click to zoom 3D Dummy anatomical diagram"
                           >
                             <img 
@@ -2051,11 +2079,7 @@ const Dashboard = () => {
                         <div className="proto-diagram-card">
                           <div 
                             className="proto-diagram-img-wrap"
-                            onClick={() => setDashboardLightbox({
-                              src: '/assets/diagrams/wide_grip_pushup_diagram.jpg',
-                              title: '3D Anatomical Wide-Grip Push-Up Diagram',
-                              subtitle: 'Wide Starting Position vs Floor-Level Deep Concentric Stretch'
-                            })}
+                            onClick={() => setDashboardLightbox({ items: PUSHUP_PROTOCOL_LIGHTBOX_ITEMS, index: 3 })}
                             title="Click to zoom 3D Dummy anatomical diagram"
                           >
                             <img 
@@ -2101,11 +2125,7 @@ const Dashboard = () => {
                         <div className="proto-diagram-card">
                           <div 
                             className="proto-diagram-img-wrap"
-                            onClick={() => setDashboardLightbox({
-                              src: '/assets/diagrams/pike_pushup_diagram.jpg',
-                              title: '3D Anatomical Pike Push-Up Diagram',
-                              subtitle: 'Inverted V Starting Position vs Diagonal Head Descent — Red Deltoids'
-                            })}
+                            onClick={() => setDashboardLightbox({ items: PUSHUP_PROTOCOL_LIGHTBOX_ITEMS, index: 4 })}
                             title="Click to zoom 3D Dummy anatomical diagram"
                           >
                             <img 
@@ -2151,11 +2171,7 @@ const Dashboard = () => {
                         <div className="proto-diagram-card">
                           <div 
                             className="proto-diagram-img-wrap"
-                            onClick={() => setDashboardLightbox({
-                              src: '/assets/aistudio/images_cb48d6e2.jpg',
-                              title: 'Push-Up Biomechanics & Kinetic Grips Guide',
-                              subtitle: 'Torque Vectors, Joint Angles & Muscle Focus'
-                            })}
+                            onClick={() => setDashboardLightbox({ items: PUSHUP_PROTOCOL_LIGHTBOX_ITEMS, index: 5 })}
                             title="Click to zoom biomechanics guide"
                           >
                             <img 
@@ -2191,9 +2207,14 @@ const Dashboard = () => {
                               className="proto-diagram-img-wrap"
                               onClick={() =>
                                 setDashboardLightbox({
-                                  src: info.image,
-                                  title: info.title || activeVideoEx?.name,
-                                  subtitle: info.subtitle || activeLibraryMatch.targetMuscle,
+                                  items: activeLibraryMatch.infographics.map((item) => ({
+                                    src: item.image,
+                                    title: item.title || activeVideoEx?.name,
+                                    subtitle: item.subtitle || activeLibraryMatch.targetMuscle,
+                                    description: item.summary,
+                                    badge: item.badge || 'High-Resolution Anatomical Diagram',
+                                  })),
+                                  index: 0,
                                 })
                               }
                               title="Click to zoom anatomical diagram"
@@ -3249,26 +3270,17 @@ const Dashboard = () => {
               </div>
             )}
 
-            {/* Lightbox Modal for Dashboard Infographics */}
-            {dashboardLightbox && (
-              <div className="lightbox-backdrop" onClick={() => setDashboardLightbox(null)}>
-                <div className="lightbox-modal-content" onClick={(e) => e.stopPropagation()}>
-                  <div className="lightbox-topbar">
-                    <div className="lightbox-titles">
-                      <span className="lightbox-badge">High-Resolution Anatomical Diagram</span>
-                      <h3>{dashboardLightbox.title}</h3>
-                      {dashboardLightbox.subtitle && <p>{dashboardLightbox.subtitle}</p>}
-                    </div>
-                    <button className="lightbox-close-btn" onClick={() => setDashboardLightbox(null)} title="Close">
-                      <X size={20} />
-                    </button>
-                  </div>
-                  <div className="lightbox-image-viewport">
-                    <img src={dashboardLightbox.src} alt={dashboardLightbox.title} className="lightbox-full-img" />
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Fullscreen Portal Lightbox for Dashboard Infographics */}
+            <ImageLightboxPortal
+              isOpen={Boolean(dashboardLightbox)}
+              items={
+                dashboardLightbox?.items ||
+                (dashboardLightbox ? [{ ...dashboardLightbox, badge: 'High-Resolution Anatomical Diagram' }] : [])
+              }
+              currentIndex={dashboardLightbox?.index || 0}
+              onIndexChange={(idx) => setDashboardLightbox((prev) => (prev ? { ...prev, index: idx } : prev))}
+              onClose={() => setDashboardLightbox(null)}
+            />
           </div>
         )}
 

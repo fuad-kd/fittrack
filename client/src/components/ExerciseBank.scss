@@ -1065,12 +1065,14 @@
   position: relative;
   flex: 1;
   overflow: hidden;
+  cursor: pointer;
 
   .step-illustration-badge {
     position: absolute;
     top: 12px;
     left: 12px;
     z-index: 10;
+    pointer-events: none;
     display: flex;
     align-items: center;
     gap: 0.3rem;
@@ -1090,10 +1092,13 @@
     height: 100%;
     object-fit: cover;
     min-height: 260px;
-    filter: brightness(0.75) saturate(0.9);
-    transition: filter 0.3s ease;
+    filter: brightness(0.78) saturate(0.95);
+    transition: filter 0.3s ease, transform 0.3s ease;
+  }
 
-    &:hover { filter: brightness(0.85) saturate(1); }
+  &:hover .step-illustration-img {
+    filter: brightness(0.92) saturate(1.05);
+    transform: scale(1.02);
   }
 
   .step-illustration-overlay {
@@ -1101,21 +1106,47 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 1.25rem 1rem 0.9rem;
+    padding: 1.5rem 1rem 0.9rem;
     background: linear-gradient(to top, rgba(6,8,14,0.95) 0%, rgba(6,8,14,0.7) 60%, transparent 100%);
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+    pointer-events: none;
+
+    .step-overlay-trigger-btn {
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2rem;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(245, 158, 11, 0.28);
+      border-radius: 10px;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      width: fit-content;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(245, 158, 11, 0.18);
+        border-color: rgba(245, 158, 11, 0.55);
+      }
+    }
+
+    .zoom-hint-icon {
+      color: #fbbf24;
+    }
 
     .step-illustration-label {
       font-size: 0.78rem;
-      font-weight: 600;
-      color: #d4b8ff;
+      font-weight: 700;
+      color: #f8fafc;
     }
 
     .step-illustration-sub {
-      font-size: 0.65rem;
-      color: #64748b;
+      font-size: 0.68rem;
+      color: #fbbf24;
       font-style: italic;
     }
   }
@@ -1415,6 +1446,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .detail-modal-thumb.clickable {
@@ -1553,6 +1585,7 @@
     align-items: center;
     gap: 0.4rem;
     backdrop-filter: blur(6px);
+    cursor: pointer;
     transition: all 0.2s ease;
   }
 

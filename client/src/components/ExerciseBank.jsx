@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
+import ImageLightboxPortal from './ImageLightboxPortal';
 import {
   BODY_PARTS,
   LEVELS,
@@ -53,59 +55,52 @@ function YouTubeEmbed({ videoId, title }) {
   );
 }
 
-/* ─────────────────────────────────────────────
-   LightboxModal — Fullscreen diagram zoom
-   ───────────────────────────────────────────── */
-function LightboxModal({ imageSrc, title, subtitle, onClose }) {
-  useEffect(() => {
-    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+const FALLBACK_STEP_ILLUSTRATIONS = [
+  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
+];
 
-  return (
-    <div className="lightbox-backdrop" onClick={onClose}>
-      <div className="lightbox-modal-content" onClick={e => e.stopPropagation()}>
-        <div className="lightbox-topbar">
-          <div className="lightbox-titles">
-            <span className="lightbox-badge">High-Resolution Reference</span>
-            <h3>{title}</h3>
-            {subtitle && <p>{subtitle}</p>}
-          </div>
-          <button className="lightbox-close-btn" onClick={onClose} title="Close full view (Esc)">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="lightbox-image-viewport">
-          <img src={imageSrc} alt={title} className="lightbox-full-img" />
-        </div>
-        <div className="lightbox-footer-caption">
-          <span>Tip: Click outside or press Esc to return to protocol instructions</span>
-        </div>
-      </div>
-    </div>
-  );
+function getStepFallbackSrc(stepNumber = 1) {
+  return FALLBACK_STEP_ILLUSTRATIONS[(Math.max(1, stepNumber) - 1) % FALLBACK_STEP_ILLUSTRATIONS.length];
+}
+
+function getStepIllustrationSrc(step) {
+  return step?.illustration || getStepFallbackSrc(step?.number || 1);
 }
 
 /* ─────────────────────────────────────────────
    StepIllustration — Diagram / Image display with Zoom
    ───────────────────────────────────────────── */
 function StepIllustration({ step, exerciseName, onZoom }) {
-  const fallbackIllustrations = [
-    'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=400&q=80',
-  ];
-  const imgSrc = step.illustration || fallbackIllustrations[(step.number - 1) % fallbackIllustrations.length];
-  const isCustom = !!step.illustration;
+  const resolvedSrc = getStepIllustrationSrc(step);
+  const [imgSrc, setImgSrc] = useState(resolvedSrc);
+  const isCustom = Boolean(step.illustration);
+
+  useEffect(() => {
+    setImgSrc(resolvedSrc);
+  }, [resolvedSrc]);
+
+  const triggerInspect = (e) => {
+    if (e) e.stopPropagation();
+    if (onZoom) onZoom(imgSrc);
+  };
 
   return (
-    <div 
-      className="step-illustration-wrap" 
-      onClick={() => onZoom && onZoom(imgSrc, `${exerciseName} — Step ${step.number}: ${step.title}`)}
-      title="Click to zoom in high-resolution"
+    <div
+      className="step-illustration-wrap"
+      onClick={triggerInspect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          triggerInspect(e);
+        }
+      }}
+      title="Click to inspect full view"
     >
       <div className={`step-illustration-badge ${isCustom ? 'custom-anatomy' : ''}`}>
         <Sparkles size={10} />
@@ -116,14 +111,21 @@ function StepIllustration({ step, exerciseName, onZoom }) {
         alt={`${exerciseName} — Step ${step.number}: ${step.title}`}
         className="step-illustration-img"
         loading="lazy"
-        onError={e => { e.target.style.display = 'none'; }}
+        onError={() => {
+          const fallback = getStepFallbackSrc(step.number);
+          if (imgSrc !== fallback) setImgSrc(fallback);
+        }}
       />
       <div className="step-illustration-overlay">
-        <div className="step-overlay-inner">
+        <button
+          type="button"
+          className="step-overlay-inner step-overlay-trigger-btn"
+          onClick={triggerInspect}
+        >
           <Maximize2 size={16} className="zoom-hint-icon" />
           <span className="step-illustration-label">Step {step.number} Diagram</span>
           <span className="step-illustration-sub">Click to inspect full view</span>
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -135,13 +137,30 @@ function StepIllustration({ step, exerciseName, onZoom }) {
 function ExerciseDetailModal({ exercise, initialTab = 'steps', onClose }) {
   const [modalTab, setModalTab] = useState(initialTab); // 'steps' | infographic.id
   const [activeStep, setActiveStep] = useState(1);
-  const [lightboxData, setLightboxData] = useState(null);
+  const [lightboxState, setLightboxState] = useState(null);
+
+  useEffect(() => {
+    setModalTab(initialTab);
+    setActiveStep(1);
+    setLightboxState(null);
+  }, [exercise?.id, initialTab]);
 
   // Lock body scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  // Close ExerciseDetailModal on Esc only when Lightbox is NOT open
+  useEffect(() => {
+    const handleModalKey = (e) => {
+      if (e.key === 'Escape' && !lightboxState) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleModalKey);
+    return () => window.removeEventListener('keydown', handleModalKey);
+  }, [lightboxState, onClose]);
 
   if (!exercise) return null;
   const steps = exercise.steps || [];
@@ -155,19 +174,87 @@ function ExerciseDetailModal({ exercise, initialTab = 'steps', onClose }) {
       : 'badge-high';
 
   const currentStep = steps.find(s => s.number === activeStep) || steps[0];
-  const currentInfographic = infographics.find(info => info.id === modalTab);
+  const currentStepIndex = Math.max(0, steps.findIndex(s => s.number === (currentStep?.number || activeStep)));
+  const currentInfographicIndex = infographics.findIndex(info => info.id === modalTab);
+  const currentInfographic = currentInfographicIndex >= 0 ? infographics[currentInfographicIndex] : null;
 
-  return (
+  const openCoverLightbox = () => {
+    setLightboxState({
+      items: [
+        {
+          src: exercise.image,
+          title: `${exercise.name} — Cover Reference`,
+          subtitle: `${exercise.targetMuscle || exercise.bodyPart} • ${exercise.equipment}`,
+          description: exercise.tip,
+          badge: 'Exercise Cover Diagram',
+        },
+      ],
+      index: 0,
+      syncSteps: false,
+    });
+  };
+
+  const openStepLightbox = (stepIndex, overrideSrc) => {
+    const stepItems = steps.map((s, idx) => ({
+      src: idx === stepIndex && overrideSrc ? overrideSrc : getStepIllustrationSrc(s),
+      title: `Phase ${s.number}/${steps.length}: ${s.title} — Step ${s.number} Diagram`,
+      subtitle: `${exercise.name} • ${exercise.targetMuscle || exercise.bodyPart}`,
+      description: s.cue ? `${s.instruction} (Coaching Cue: ${s.cue})` : s.instruction,
+      badge: `Step ${s.number} of ${steps.length} Diagram`,
+    }));
+
+    setLightboxState({
+      items: stepItems,
+      index: Math.max(0, Math.min(stepIndex, stepItems.length - 1)),
+      syncSteps: true,
+    });
+  };
+
+  const openAnatomyLightbox = (infoIndex) => {
+    const infoItems = infographics.map((info) => ({
+      src: info.image,
+      title: `${exercise.name} — ${info.title}`,
+      subtitle: info.subtitle || exercise.targetMuscle || exercise.bodyPart,
+      description: info.summary,
+      badge: info.badge || '3D Mannequin Anatomy',
+    }));
+
+    setLightboxState({
+      items: infoItems,
+      index: Math.max(0, Math.min(infoIndex, infoItems.length - 1)),
+      syncSteps: false,
+    });
+  };
+
+  const handleLightboxIndexChange = (nextIdx) => {
+    setLightboxState((prev) => {
+      if (!prev) return prev;
+      if (prev.syncSteps && steps[nextIdx]) {
+        setActiveStep(steps[nextIdx].number);
+      }
+      return { ...prev, index: nextIdx };
+    });
+  };
+
+  const modalMarkup = (
     <>
       <div className="detail-modal-backdrop" onClick={onClose}>
         <div className="detail-modal-container" onClick={e => e.stopPropagation()}>
 
           {/* ── Modal Header ── */}
           <div className="detail-modal-header">
-            <div 
-              className="detail-modal-thumb clickable" 
-              onClick={() => setLightboxData({ src: exercise.image, title: exercise.name, subtitle: exercise.targetMuscle })}
-              title="Click to zoom cover diagram"
+            <div
+              className="detail-modal-thumb clickable"
+              onClick={openCoverLightbox}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openCoverLightbox();
+                }
+              }}
+              title="Click to inspect cover diagram"
             >
               <img src={exercise.image} alt={exercise.name} />
               <div className="thumb-zoom-badge">
@@ -248,10 +335,10 @@ function ExerciseDetailModal({ exercise, initialTab = 'steps', onClose }) {
                 <div className="detail-step-body">
                   {/* Left: Illustration */}
                   <div className="step-illustration-col">
-                    <StepIllustration 
-                      step={currentStep} 
-                      exerciseName={exercise.name} 
-                      onZoom={(src, title) => setLightboxData({ src, title, subtitle: currentStep.title })}
+                    <StepIllustration
+                      step={currentStep}
+                      exerciseName={exercise.name}
+                      onZoom={(resolvedSrc) => openStepLightbox(currentStepIndex, resolvedSrc)}
                     />
                   </div>
 
@@ -307,24 +394,35 @@ function ExerciseDetailModal({ exercise, initialTab = 'steps', onClose }) {
           {modalTab !== 'steps' && currentInfographic && (
             <div className="infographic-panel-body">
               <div className="infographic-preview-col">
-                <div 
+                <div
                   className="infographic-hero-container"
-                  onClick={() => setLightboxData({ 
-                    src: currentInfographic.image, 
-                    title: currentInfographic.title, 
-                    subtitle: currentInfographic.subtitle 
-                  })}
-                  title="Click to view full-resolution poster"
+                  onClick={() => openAnatomyLightbox(currentInfographicIndex)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openAnatomyLightbox(currentInfographicIndex);
+                    }
+                  }}
+                  title="Click to inspect full-resolution diagram"
                 >
-                  <img 
-                    src={currentInfographic.image} 
-                    alt={currentInfographic.title} 
-                    className="infographic-full-view" 
+                  <img
+                    src={currentInfographic.image}
+                    alt={currentInfographic.title}
+                    className="infographic-full-view"
                   />
-                  <div className="infographic-zoom-btn">
+                  <button
+                    type="button"
+                    className="infographic-zoom-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAnatomyLightbox(currentInfographicIndex);
+                    }}
+                  >
                     <Maximize2 size={15} />
                     <span>Click to Zoom High-Res</span>
-                  </div>
+                  </button>
                 </div>
               </div>
 
@@ -412,17 +510,19 @@ function ExerciseDetailModal({ exercise, initialTab = 'steps', onClose }) {
         </div>
       </div>
 
-      {/* Lightbox Modal for zooming any image */}
-      {lightboxData && (
-        <LightboxModal 
-          imageSrc={lightboxData.src} 
-          title={lightboxData.title} 
-          subtitle={lightboxData.subtitle} 
-          onClose={() => setLightboxData(null)} 
-        />
-      )}
+      <ImageLightboxPortal
+        isOpen={Boolean(lightboxState)}
+        items={lightboxState?.items || []}
+        currentIndex={lightboxState?.index || 0}
+        onIndexChange={handleLightboxIndexChange}
+        onClose={() => setLightboxState(null)}
+      />
     </>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalMarkup, document.body)
+    : modalMarkup;
 }
 
 /* ─────────────────────────────────────────────
@@ -744,7 +844,7 @@ export default function ExerciseBank({ plans, onExerciseAdded, onQuickCreatePlan
   const [selectedBodyPart, setSelectedBodyPart] = useState('All');
   const [selectedLevel,    setSelectedLevel]    = useState('All');
   const [searchQuery,      setSearchQuery]      = useState('');
-  const [detailExercise,   setDetailExercise]   = useState(null); // Step-by-step modal
+  const [detailModalState, setDetailModalState] = useState(null); // { exercise, initialTab }
   const [videoExercise,    setVideoExercise]    = useState(null); // YouTube video modal
   const [addExercise,      setAddExercise]      = useState(null); // Add to plan modal
   const [feedback,         setFeedback]         = useState('');
@@ -849,7 +949,7 @@ export default function ExerciseBank({ plans, onExerciseAdded, onQuickCreatePlan
             <div
               key={ex.id}
               className="exercise-card-item"
-              onClick={() => setDetailExercise(ex)}
+              onClick={() => setDetailModalState({ exercise: ex, initialTab: 'steps' })}
               title="Click to view full exercise guide"
             >
               <div className="card-image-wrap">
@@ -906,7 +1006,10 @@ export default function ExerciseBank({ plans, onExerciseAdded, onQuickCreatePlan
                   {ex.infographics?.length > 0 && (
                     <button
                       className="btn-infographic-guide"
-                      onClick={e => { e.stopPropagation(); setDetailExercise(ex); }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setDetailModalState({ exercise: ex, initialTab: ex.infographics[0].id });
+                      }}
                       title="View anatomical breakdown and 4 variations guide"
                     >
                       <Activity size={13} />
@@ -944,10 +1047,11 @@ export default function ExerciseBank({ plans, onExerciseAdded, onQuickCreatePlan
       {/* ── MODALS ── */}
 
       {/* Step-by-step Exercise Detail Modal */}
-      {detailExercise && (
+      {detailModalState?.exercise && (
         <ExerciseDetailModal
-          exercise={detailExercise}
-          onClose={() => setDetailExercise(null)}
+          exercise={detailModalState.exercise}
+          initialTab={detailModalState.initialTab}
+          onClose={() => setDetailModalState(null)}
         />
       )}
 
