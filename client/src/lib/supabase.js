@@ -1088,6 +1088,26 @@ if (!clientInstance) {
           },
         };
       },
+
+      resetPasswordForEmail: async () => {
+        return {
+          data: null,
+          error: {
+            message:
+              'Supabase Auth is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in your environment variables.',
+          },
+        };
+      },
+
+      updateUser: async () => {
+        return {
+          data: { user: null },
+          error: {
+            message:
+              'Supabase Auth is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY (or VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) in your environment variables.',
+          },
+        };
+      },
     },
 
     from: (table) => new MockQueryBuilder(table),

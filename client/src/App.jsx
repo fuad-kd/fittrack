@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import VerifyEmail from './components/VerifyEmail';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import Dashboard from './components/Dashboard';
 
 const LoadingScreen = () => (
@@ -21,11 +23,15 @@ const LoadingScreen = () => (
   </div>
 );
 
-// Protected route – redirects to /login or /verify-email if not authenticated & email-verified
+// Protected route – redirects to /login, /verify-email, or /reset-password if not ready
 const ProtectedRoute = ({ children }) => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, passwordRecovery, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
+
+  if (passwordRecovery) {
+    return <Navigate to="/reset-password" replace />;
+  }
 
   if (!isAuthenticated) {
     if (user && !user.email_confirmed_at) {
@@ -37,20 +43,42 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Public route – redirects to /dashboard only if authenticated & email-verified
+// Public route – redirects to /dashboard only if authenticated & not in password recovery
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, passwordRecovery, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
+
+  if (passwordRecovery) {
+    return <Navigate to="/reset-password" replace />;
+  }
 
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 };
 
-// Root route – waits for Supabase auth callback params (?code=... / #access_token=...) before redirecting
+// Root route – waits for Supabase auth callback params (?code=... / #access_token=... / type=recovery) before redirecting
 const RootRedirect = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, passwordRecovery, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
+
+  const isRecoveryUrl =
+    passwordRecovery ||
+    window.location.hash.includes('type=recovery') ||
+    window.location.search.includes('type=recovery');
+
+  if (isRecoveryUrl) {
+    return (
+      <Navigate
+        to={{
+          pathname: '/reset-password',
+          search: window.location.search,
+          hash: window.location.hash,
+        }}
+        replace
+      />
+    );
+  }
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -74,16 +102,18 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
-          <Route path="/login"        element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register"     element={<PublicRoute><Register /></PublicRoute>} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/login"           element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register"        element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+          <Route path="/reset-password"  element={<ResetPassword />} />
+          <Route path="/verify-email"    element={<VerifyEmail />} />
 
           {/* Protected routes */}
-          <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/dashboard"       element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
           {/* Default redirect */}
-          <Route path="/"             element={<RootRedirect />} />
-          <Route path="*"             element={<Navigate to="/login" replace />} />
+          <Route path="/"                element={<RootRedirect />} />
+          <Route path="*"                element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -4,9 +4,16 @@ import { supabase } from '../lib/supabase';
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]                         = useState(null);
+  const [profile, setProfile]                   = useState(null);
+  const [loading, setLoading]                   = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.location.hash.includes('type=recovery') ||
+      window.location.search.includes('type=recovery')
+    );
+  });
 
   // Fetch the extra profile info (username, phone, avatar_url) from the profiles table
   const fetchProfile = useCallback(async (userId) => {
@@ -66,10 +73,15 @@ export const AuthProvider = ({ children }) => {
         if (isMounted) setLoading(false);
       });
 
-    // Listen for auth state changes (login, logout, email confirmed, etc.)
+    // Listen for auth state changes (login, logout, email confirmed, password recovery, etc.)
     const { data: { subscription } = {} } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         if (!isMounted) return;
+        if (event === 'PASSWORD_RECOVERY') {
+          setPasswordRecovery(true);
+        } else if (event === 'SIGNED_OUT') {
+          setPasswordRecovery(false);
+        }
         const sessionUser = session?.user ?? null;
         setUser(sessionUser);
         if (sessionUser?.email_confirmed_at) {
@@ -87,10 +99,15 @@ export const AuthProvider = ({ children }) => {
     };
   }, [fetchProfile]);
 
+  const clearPasswordRecovery = useCallback(() => {
+    setPasswordRecovery(false);
+  }, []);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    setPasswordRecovery(false);
   };
 
   const isAuthenticated = Boolean(user && user.email_confirmed_at);
@@ -100,6 +117,8 @@ export const AuthProvider = ({ children }) => {
     profile,
     loading,
     isAuthenticated,
+    passwordRecovery,
+    clearPasswordRecovery,
     refreshUser,
     signOut,
   };

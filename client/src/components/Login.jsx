@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { evaluatePasswordRules } from '../utils/passwordRules';
 import './Login.css';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMessage = location.state?.message || '';
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword]     = useState('');
@@ -133,6 +135,7 @@ const Login = () => {
           <div className="gold-rule" />
 
           {error && <div className="error-banner">{error}</div>}
+          {successMessage && !error && <div className="success-banner">{successMessage}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="field">

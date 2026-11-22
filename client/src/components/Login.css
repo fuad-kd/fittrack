@@ -235,7 +235,7 @@
   margin-bottom: 2.4rem;
 }
 
-/* ── Error banner ── */
+/* ── Error & Success banners ── */
 .error-banner {
   background: var(--error-bg);
   border-left: 2px solid var(--error-color);
@@ -243,6 +243,17 @@
   padding: 0.8rem 1rem;
   font-size: 0.82rem;
   line-height: 1.5;
+  margin-bottom: 1.8rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.success-banner {
+  background: rgba(85, 185, 133, 0.08);
+  border-left: 2px solid #55B985;
+  color: #86efac;
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
   margin-bottom: 1.8rem;
   border-radius: 0 4px 4px 0;
 }
