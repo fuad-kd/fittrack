@@ -22,12 +22,23 @@ export default defineConfig(({ mode }) => {
     ''
   ).trim()
 
+  const googleMapsApiKey = (
+    process.env.VITE_GOOGLE_MAPS_API_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
+    clientEnv.VITE_GOOGLE_MAPS_API_KEY ||
+    rootEnv.VITE_GOOGLE_MAPS_API_KEY ||
+    clientEnv.GOOGLE_MAPS_API_KEY ||
+    rootEnv.GOOGLE_MAPS_API_KEY ||
+    ''
+  ).trim()
+
   return {
     plugins: [react()],
     envPrefix: ['VITE_', 'SUPABASE_'],
     define: {
       'import.meta.env.SUPABASE_URL': JSON.stringify(supabaseUrl),
       'import.meta.env.SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
+      'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(googleMapsApiKey),
     },
     server: {
       host: '0.0.0.0',

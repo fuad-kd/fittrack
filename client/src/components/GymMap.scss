@@ -3,7 +3,7 @@
 .gym-map-container {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.5rem;
 }
 
 .map-page-header {
@@ -30,6 +30,7 @@
   align-items: center;
   justify-content: center;
   color: #fb7185;
+  flex-shrink: 0;
 }
 
 .map-page-header h2 {
@@ -46,67 +47,63 @@
   margin: 0;
 }
 
-.btn-near-me {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
-  color: #07090e;
-  font-weight: 600;
-  font-size: 0.88rem;
-  padding: 0.65rem 1.35rem;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
-  }
-
-  .spinning {
-    animation: spin 1s linear infinite;
-  }
+/* Shared Google Gym Locator Container */
+.google-gym-locator {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  min-width: 0;
 }
 
-/* Search Card & Chips */
-.search-filter-card {
+.gmp-controls-bar {
   background: rgba(17, 24, 38, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
-  padding: 1.35rem 1.6rem;
+  padding: 1.15rem 1.35rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.9rem;
+}
+
+.google-gym-locator.compact-mode .gmp-controls-bar {
+  background: rgba(14, 20, 36, 0.65);
+  padding: 0.95rem 1.1rem;
+  border-radius: 14px;
 }
 
 .map-search-form {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 
   .search-field-wrap {
     flex: 1;
+    min-width: 210px;
     position: relative;
 
     .search-icon {
       position: absolute;
-      left: 1rem;
+      left: 0.95rem;
       top: 50%;
       transform: translateY(-50%);
       color: #64748b;
+      pointer-events: none;
     }
 
     input {
       width: 100%;
-      background: rgba(11, 15, 23, 0.7);
+      background: rgba(11, 15, 23, 0.75);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
-      padding: 0.75rem 1rem 0.75rem 2.6rem;
+      padding: 0.68rem 0.95rem 0.68rem 2.5rem;
       color: #f8fafc;
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       outline: none;
+
+      &::placeholder {
+        color: #64748b;
+      }
 
       &:focus {
         border-color: #f59e0b;
@@ -120,23 +117,61 @@
     color: #f8fafc;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
-    padding: 0.75rem 1.4rem;
+    padding: 0.68rem 1.25rem;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     cursor: pointer;
     transition: all 0.2s ease;
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.3);
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: wait;
     }
   }
+}
+
+.btn-near-me {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+  color: #07090e;
+  font-weight: 700;
+  font-size: 0.86rem;
+  padding: 0.68rem 1.15rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.24);
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.36);
+  }
+}
+
+.spinning {
+  animation: gmpSpin 1s linear infinite;
+}
+
+.gmp-meta-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .filter-chips-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   flex-wrap: wrap;
 
   .chips-label {
@@ -148,9 +183,9 @@
   .chip-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 0.35rem 0.85rem;
+    padding: 0.32rem 0.8rem;
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: #cbd5e1;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -161,43 +196,159 @@
     }
 
     &.active {
-      background: rgba(245, 158, 11, 0.15);
-      border-color: rgba(245, 158, 11, 0.4);
-      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.16);
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #fbbf24;
       font-weight: 600;
     }
   }
 }
 
-/* Map Frame */
+.gmp-tracking-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.gmp-radius-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  background: rgba(11, 15, 23, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.28rem 0.55rem;
+
+  select {
+    background: transparent;
+    border: none;
+    color: #f8fafc;
+    font-size: 0.78rem;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+
+    option {
+      background: #0f172a;
+      color: #f8fafc;
+    }
+  }
+}
+
+.gmp-live-toggle,
+.gmp-recenter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 10px;
+  padding: 0.34rem 0.7rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+  }
+}
+
+.gmp-live-toggle.is-live {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.gmp-recenter-btn {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.gmp-inline-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  color: #fde68a;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-size: 0.82rem;
+
+  .gmp-retry-link {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fef3c7;
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+}
+
+.gmp-full-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Map Frame & Explicit Height Container (CF2) */
 .map-frame-wrapper {
   background: rgba(17, 24, 38, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .map-frame-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1.25rem;
-  background: rgba(11, 15, 23, 0.8);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.72rem 1.15rem;
+  background: rgba(11, 15, 23, 0.9);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 
-  .status-dot-group {
+  .gmp-status-left {
     display: flex;
-    gap: 0.4rem;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
 
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
+  .gmp-gps-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
 
-      &.red    { background: #ef4444; }
-      &.yellow { background: #f59e0b; }
-      &.green  { background: #10b981; }
+    &.live {
+      background: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25);
+    }
+
+    &.locating {
+      background: #f59e0b;
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.22);
+    }
+
+    &.idle {
+      background: #64748b;
     }
   }
 
@@ -206,28 +357,164 @@
     color: #94a3b8;
 
     strong {
-      color: #f59e0b;
+      color: #f8fafc;
+    }
+  }
+
+  .gmp-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .gmp-search-area-btn,
+  .gmp-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.14);
+    color: #fbbf24;
+
+    &:hover:not(:disabled) {
+      background: rgba(245, 158, 11, 0.24);
     }
   }
 }
 
-.responsive-map-iframe {
+/* Explicit non-zero height for Google Map canvas */
+.gmp-map-canvas-shell {
   width: 100%;
-  height: 480px;
-  border: none;
-  display: block;
-  filter: contrast(105%) brightness(98%);
+  position: relative;
+  background: #0b0f17;
+
+  &.is-full {
+    height: 480px;
+  }
+
+  &.is-compact {
+    height: 330px;
+  }
 }
 
-/* Curated Gyms Section */
+.gmp-map-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #94a3b8;
+  padding: 1.5rem;
+  text-align: center;
+
+  h4 {
+    color: #f8fafc;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+}
+
+/* Live User GPS Beacon Marker */
+.gmp-user-beacon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gmp-user-beacon-pulse {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.35);
+  animation: gmpBeaconPulse 2s ease-out infinite;
+}
+
+.gmp-user-beacon-core {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* InfoWindow Card (Google InfoWindow surface is light) */
+.gmp-infowindow-card {
+  color: #0f172a;
+  font-family: inherit;
+  padding: 0.15rem 0.2rem;
+
+  h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .gmp-iw-meta {
+    margin: 0 0 0.3rem 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #b45309;
+  }
+
+  .gmp-iw-address,
+  .gmp-iw-hours {
+    margin: 0 0 0.3rem 0;
+    font-size: 0.78rem;
+    color: #475569;
+    line-height: 1.35;
+  }
+
+  .gmp-iw-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.45rem;
+
+    a {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #d97706;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+/* Nearby Gyms Results */
 .curated-gyms-section {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 
   .section-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+
     h3 {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
       color: #f8fafc;
       margin: 0 0 0.2rem 0;
@@ -240,19 +527,59 @@
   }
 }
 
+.google-gym-locator.compact-mode .nearest-facilities-card .section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  h3 {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0 0 0.15rem 0;
+  }
+
+  span {
+    font-size: 0.74rem;
+    color: #64748b;
+  }
+}
+
+.gmp-empty-gyms {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  text-align: center;
+  padding: 2rem 1.25rem;
+  background: rgba(17, 24, 38, 0.55);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  color: #94a3b8;
+
+  p {
+    margin: 0;
+    font-size: 0.84rem;
+    max-width: 420px;
+  }
+}
+
 .gyms-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 1.15rem;
 }
 
 .gym-card-tile {
-  background: rgba(17, 24, 38, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 18px;
-  padding: 1.4rem;
+  background: rgba(17, 24, 38, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.2rem;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
@@ -261,11 +588,18 @@
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   }
 
+  &.is-selected {
+    border-color: rgba(245, 158, 11, 0.65);
+    background: rgba(245, 158, 11, 0.08);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25);
+  }
+
   .gym-tile-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.65rem;
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
 
     .gym-type-tag {
       font-size: 0.72rem;
@@ -280,12 +614,18 @@
       display: inline-flex;
       align-items: center;
       gap: 0.25rem;
-      font-size: 0.75rem;
-      color: #f59e0b;
+      font-size: 0.74rem;
+      color: #fbbf24;
       background: rgba(245, 158, 11, 0.12);
       border: 1px solid rgba(245, 158, 11, 0.25);
-      padding: 0.2rem 0.5rem;
+      padding: 0.18rem 0.5rem;
       border-radius: 20px;
+
+      em {
+        font-style: normal;
+        color: #94a3b8;
+        font-size: 0.7rem;
+      }
 
       .star-icon {
         fill: #f59e0b;
@@ -294,31 +634,34 @@
   }
 
   .gym-name {
-    font-size: 1.1rem;
+    font-size: 1.02rem;
     font-weight: 700;
     color: #f8fafc;
-    margin: 0 0 0.4rem 0;
+    margin: 0 0 0.35rem 0;
   }
 
   .gym-address {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.4rem;
-    font-size: 0.8rem;
+    font-size: 0.79rem;
     color: #94a3b8;
-    margin: 0 0 0.85rem 0;
+    margin: 0 0 0.75rem 0;
+    line-height: 1.35;
 
     .pin-icon {
       color: #64748b;
       flex-shrink: 0;
+      margin-top: 2px;
     }
   }
 
   .gym-info-chips {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.85rem;
 
     .info-chip {
       font-size: 0.72rem;
@@ -327,14 +670,25 @@
       border-radius: 6px;
 
       &.distance {
-        background: rgba(56, 189, 248, 0.1);
+        background: rgba(56, 189, 248, 0.12);
         color: #38bdf8;
       }
 
       &.status {
-        background: rgba(16, 185, 129, 0.1);
+        background: rgba(16, 185, 129, 0.12);
         color: #34d399;
       }
+    }
+  }
+
+  .gmp-place-attribution {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin: 0 0 0.5rem 0;
+
+    a {
+      color: #94a3b8;
+      text-decoration: underline;
     }
   }
 
@@ -342,44 +696,72 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     margin-top: auto;
-    padding-top: 0.75rem;
+    padding-top: 0.65rem;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 
     .gym-hours {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      font-size: 0.75rem;
-      color: #64748b;
+      font-size: 0.74rem;
+      color: #94a3b8;
+      min-width: 0;
+
+      span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     .btn-directions-link {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: #f59e0b;
       text-decoration: none;
+      flex-shrink: 0;
       transition: color 0.2s ease;
 
       &:hover {
         color: #fde68a;
+        text-decoration: underline;
       }
     }
   }
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes gmpSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gmpBeaconPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
 }
 
 @media (max-width: 768px) {
   .map-search-form {
     flex-direction: column;
   }
-  .responsive-map-iframe {
+
+  .gmp-map-canvas-shell.is-full {
     height: 340px;
+  }
+
+  .gmp-map-canvas-shell.is-compact {
+    height: 290px;
   }
 }

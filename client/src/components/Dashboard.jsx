@@ -26,10 +26,8 @@ import {
   ThumbsDown,
   MessageSquare,
   Play,
-  Navigation,
   ExternalLink,
   Clock,
-  Star,
   Camera,
   RefreshCw,
   Send,
@@ -64,6 +62,7 @@ import WorkoutLog from './WorkoutLog';
 import ProgressTracker from './ProgressTracker';
 import SocialFeed from './SocialFeed';
 import GymMap from './GymMap';
+import GoogleGymLocator, { GoogleMapsProvider } from './GoogleGymLocator';
 import YouTubeEmbed from './YouTubeEmbed';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { runTFLiteInference } from '../utils/tfliteModel';
@@ -376,11 +375,6 @@ const Dashboard = () => {
   const [commentSubmitting, setCommentSubmitting] = useState({});
   const [quickReactionPending, setQuickReactionPending] = useState({});
   const [socialHighlightError, setSocialHighlightError] = useState('');
-
-  /* ── 7. Location / Map State ── */
-  const [mapQuery, setMapQuery] = useState('Equinox Fitness');
-  const [locatingGps, setLocatingGps] = useState(false);
-  const [gymTypeFilter, setGymTypeFilter] = useState('All');
 
   // GSAP Container Refs
   const overviewRef = useRef(null);
@@ -1092,34 +1086,6 @@ const Dashboard = () => {
     }
   };
 
-  /* ── Geolocation for Gym Map ── */
-  const handleFindNearMe = () => {
-    if (navigator.geolocation) {
-      setLocatingGps(true);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setMapQuery(`${lat},${lng} gym fitness`);
-          setLocatingGps(false);
-        },
-        (err) => {
-          console.warn('Geolocation denied or unavailable:', err);
-          setLocatingGps(false);
-          setMapQuery('Gyms near me');
-        }
-      );
-    } else {
-      setMapQuery('Gyms near me');
-    }
-  };
-
-  const handleFacilityFilter = (facility) => {
-    setGymTypeFilter(facility);
-    if (facility === 'All') setMapQuery('Gyms fitness centers');
-    else setMapQuery(`${facility} Gym`);
-  };
-
   const handleLogout = async () => {
     await signOut();
     navigate('/login');
@@ -1134,13 +1100,8 @@ const Dashboard = () => {
 
   const userInitial = (profile?.username || user?.email || 'A')[0].toUpperCase();
 
-  const curatedGyms = [
-    { name: 'Apex Athletic Club', address: '240 Olympian Way, Suite 400', dist: '0.6 mi', rating: 4.9, type: 'Powerlifting / 24-7' },
-    { name: 'Iron Sanctuary CrossFit', address: '185 Barbell Blvd', dist: '1.2 mi', rating: 4.8, type: 'Olympic & Conditioning' },
-    { name: 'Equinox Luxury Fitness', address: '500 Grand Promenade', dist: '1.8 mi', rating: 4.9, type: 'Elite Health Club' }
-  ];
-
   return (
+    <GoogleMapsProvider>
     <div className="dashboard-page">
       {/* ── Top Luxury Navigation Bar ── */}
       <header className="dashboard-nav">
@@ -2881,19 +2842,11 @@ const Dashboard = () => {
                   <div>
                     <div className="widget-badge-tag gold">GYM LOCATOR</div>
                     <h2 className="section-title">Nearby Training Centers</h2>
-                    <p className="section-desc">Find nearby gyms, strength boxes, and directions from your current location</p>
+                    <p className="section-desc">Live GPS tracking with nearby gyms, ratings, and directions via Google Maps</p>
                   </div>
 
                   <div className="map-action-pills">
-                    <button 
-                      className="btn-locate-me"
-                      onClick={handleFindNearMe}
-                      disabled={locatingGps}
-                    >
-                      <Navigation size={14} className={locatingGps ? 'spinning' : ''} />
-                      <span>{locatingGps ? 'Locating...' : 'Locate Nearest'}</span>
-                    </button>
-                    <button 
+                    <button
                       className="btn-full-map"
                       onClick={() => setActiveTab('map')}
                     >
@@ -2904,70 +2857,10 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="dashboard-map-layout">
-                <div className="map-embed-wrapper">
-                  <div className="map-embed-header">
-                    <span className="active-map-pin">
-                      <MapPin size={13} className="text-gold" />
-                      <span>Showing: <strong>{mapQuery}</strong></span>
-                    </span>
-                    <span className="map-filter-indicator">{gymTypeFilter}</span>
-                  </div>
-
-                  <iframe 
-                    title="FitTrack Gym Locator Embed"
-                    className="dashboard-map-iframe"
-                    src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
-                    loading="lazy"
-                    allowFullScreen
-                  />
-
-                  <div className="facility-chips-dock">
-                    <span className="dock-label">Filter:</span>
-                    {['All', 'Equinox', 'CrossFit Box', 'Powerlifting', '24/7 Gym'].map((fac) => (
-                      <button 
-                        key={fac}
-                        className={`chip-filter-btn ${gymTypeFilter === fac ? 'active' : ''}`}
-                        onClick={() => handleFacilityFilter(fac)}
-                      >
-                        {fac}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="nearest-facilities-card">
-                  <div className="facilities-head">
-                    <Star size={16} className="text-gold" />
-                    <h4>Nearest Verified Facilities</h4>
-                  </div>
-
-                  <div className="facilities-list">
-                    {curatedGyms.map((gym, idx) => (
-                      <div key={idx} className="facility-item">
-                        <div className="facility-top">
-                          <strong className="gym-name">{gym.name}</strong>
-                          <span className="rating-tag">★ {gym.rating}</span>
-                        </div>
-                        <p className="gym-addr">{gym.address}</p>
-                        <div className="facility-bottom">
-                          <span className="dist-tag">{gym.dist} away</span>
-                          <span className="type-tag">{gym.type}</span>
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gym.name + ' ' + gym.address)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-directions-link"
-                          >
-                            <span>Directions</span>
-                            <ExternalLink size={12} />
-                          </a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <GoogleGymLocator
+                mode="compact"
+                onOpenFullMap={() => setActiveTab('map')}
+              />
             </section>
             </div> {/* End .dashboard-widgets-grid */}
 
@@ -3387,6 +3280,7 @@ const Dashboard = () => {
         {activeTab === 'map' && <GymMap />}
       </main>
     </div>
+    </GoogleMapsProvider>
   );
 };
 
