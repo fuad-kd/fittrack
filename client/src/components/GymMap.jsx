@@ -1,18 +1,11 @@
-import React, { useEffect, useRef } from 'react';
-import gsap from 'gsap';
+import React from 'react';
 import { MapPin } from 'lucide-react';
 import FreeLiveGymMap from './FreeLiveGymMap';
 import './GymMap.scss';
 
 const GymMap = () => {
-  const mapRef = useRef(null);
-
-  useEffect(() => {
-    gsap.from('.gym-map-container', { opacity: 0, y: 15, duration: 0.4, ease: 'power2.out' });
-  }, []);
-
   return (
-    <div className="gym-map-container" ref={mapRef}>
+    <div className="gym-map-container">
       <div className="map-page-header">
         <div className="map-title-group">
           <div className="map-icon-box">

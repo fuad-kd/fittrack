@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import './GymMap.scss';
 import {
   Clock,
   Compass,
@@ -21,6 +22,22 @@ const DEFAULT_CENTER = { lat: 40.758, lng: -73.9855 };
 const LAST_GPS_STORAGE_KEY = 'fittrack_last_browser_gps';
 const RADIUS_OPTIONS_KM = [1, 2, 5, 10, 25];
 const CATEGORY_FILTERS = ['All', '24/7 Gym', 'CrossFit Box', 'Powerlifting', 'Yoga Studio'];
+
+const NON_GYM_KEYWORDS = [
+  'beauty parlor',
+  'beauty parlour',
+  'beauty salon',
+  'hair salon',
+  'barber',
+  'sports bar',
+  'little gym',
+  'indoor_play',
+  'elementary',
+  'high school',
+  'primary school',
+  'middle school',
+  'kindergarten',
+];
 
 function escapeHtml(str = '') {
   return String(str)
@@ -58,8 +75,41 @@ function haversineKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+function buildBoundingBox(center, radiusKm) {
+  const latDelta = radiusKm / 111.32;
+  const cosLat = Math.max(0.2, Math.cos((center.lat * Math.PI) / 180));
+  const lngDelta = radiusKm / (111.32 * cosLat);
+  return {
+    minLat: center.lat - latDelta,
+    maxLat: center.lat + latDelta,
+    minLng: center.lng - lngDelta,
+    maxLng: center.lng + lngDelta,
+  };
+}
+
 function buildGoogleDirectionsUrl(lat, lng) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
+function isLikelyGym(name = '', osmClass = '', osmType = '') {
+  const lower = name.toLowerCase();
+  if (NON_GYM_KEYWORDS.some((bad) => lower.includes(bad))) {
+    return false;
+  }
+  if (osmType === 'school' || osmType === 'residential' || osmType === 'indoor_play') {
+    return false;
+  }
+  if (
+    osmClass === 'leisure' ||
+    osmType === 'fitness_centre' ||
+    osmType === 'sports_centre' ||
+    osmType === 'gym'
+  ) {
+    return true;
+  }
+  return /(gym|fitness|crossfit|barbell|powerlift|weight|iron|athletic|workout|yoga|pilates|boxing|mma)/i.test(
+    lower
+  );
 }
 
 function classifyGym(tags = {}) {
@@ -102,10 +152,39 @@ function formatOsmAddress(tags = {}, lat, lng) {
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
-async function fetchNearbyGymsOverpass(center, radiusKm, originForDistance, signal) {
+function formatNominatimAddress(item, lat, lng) {
+  const addr = item.address || {};
+  const street = [addr.house_number, addr.road].filter(Boolean).join(' ');
+  const area = addr.neighbourhood || addr.suburb || addr.city || addr.town || addr.village;
+  const full = [street, area].filter(Boolean).join(', ');
+  if (full) return full;
+  if (item.display_name) {
+    return item.display_name.split(',').slice(1, 4).join(', ').trim() || item.display_name;
+  }
+  return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
+function withTimeoutSignal(parentSignal, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  const onParentAbort = () => controller.abort();
+  if (parentSignal) {
+    if (parentSignal.aborted) controller.abort();
+    else parentSignal.addEventListener('abort', onParentAbort, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      if (parentSignal) parentSignal.removeEventListener('abort', onParentAbort);
+    },
+  };
+}
+
+async function tryOverpassGyms(center, radiusKm, originForDistance, signal) {
   const radiusMeters = Math.round(radiusKm * 1000);
   const query = `
-[out:json][timeout:18];
+[out:json][timeout:10];
 (
   node["leisure"="fitness_centre"](around:${radiusMeters},${center.lat},${center.lng});
   way["leisure"="fitness_centre"](around:${radiusMeters},${center.lat},${center.lng});
@@ -114,80 +193,222 @@ async function fetchNearbyGymsOverpass(center, radiusKm, originForDistance, sign
   node["sport"~"fitness|weightlifting|powerlifting|crossfit|yoga",i](around:${radiusMeters},${center.lat},${center.lng});
   way["sport"~"fitness|weightlifting|powerlifting|crossfit|yoga",i](around:${radiusMeters},${center.lat},${center.lng});
 );
-out center 60;
+out center 50;
 `.trim();
 
-  const endpoints = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-  ];
+  const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, 6000);
+  try {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: timedSignal,
+    });
+    if (!res.ok) throw new Error(`Overpass ${res.status}`);
+    const data = await res.json();
+    const elements = Array.isArray(data.elements) ? data.elements : [];
+    const results = [];
 
-  let data = null;
-  let lastError = null;
+    for (const el of elements) {
+      const lat = typeof el.lat === 'number' ? el.lat : el.center?.lat;
+      const lng = typeof el.lon === 'number' ? el.lon : el.center?.lon;
+      if (typeof lat !== 'number' || typeof lng !== 'number') continue;
 
-  for (const endpoint of endpoints) {
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-          Accept: 'application/json',
-        },
-        body: `data=${encodeURIComponent(query)}`,
-        signal,
+      const tags = el.tags || {};
+      const name = tags.name || tags.brand || tags.operator || 'Fitness Center';
+      if (!isLikelyGym(name, tags.leisure || tags.amenity, tags.leisure || tags.amenity)) continue;
+
+      const { category, is24Hours } = classifyGym(tags);
+      results.push({
+        id: `osm_${el.type}_${el.id}`,
+        name,
+        lat,
+        lng,
+        address: formatOsmAddress(tags, lat, lng),
+        openingHours: tags.opening_hours || (is24Hours ? 'Open 24/7' : ''),
+        category,
+        is24Hours,
+        distanceKm: haversineKm(originForDistance, { lat, lng }),
       });
-      if (!res.ok) {
-        lastError = new Error(`Overpass returned ${res.status}`);
-        continue;
-      }
-      data = await res.json();
-      break;
+    }
+    return results;
+  } finally {
+    cleanup();
+  }
+}
+
+async function fetchNominatimGyms(center, radiusKm, originForDistance, queryTerm, signal) {
+  const box = buildBoundingBox(center, radiusKm);
+  const params = new URLSearchParams({
+    format: 'json',
+    q: queryTerm,
+    viewbox: `${box.minLng},${box.maxLat},${box.maxLng},${box.minLat}`,
+    bounded: '1',
+    limit: '40',
+    extratags: '1',
+    addressdetails: '1',
+  });
+
+  const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, 7000);
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+      signal: timedSignal,
+    });
+    if (!res.ok) throw new Error(`Nominatim ${res.status}`);
+    const items = await res.json();
+    if (!Array.isArray(items)) return [];
+
+    const results = [];
+    for (const item of items) {
+      const lat = Number(item.lat);
+      const lng = Number(item.lon);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+
+      const name = item.name || item.display_name?.split(',')[0] || 'Fitness Center';
+      if (!isLikelyGym(name, item.class, item.type)) continue;
+
+      const distanceKm = haversineKm(originForDistance, { lat, lng });
+      if (distanceKm > radiusKm * 1.25) continue;
+
+      const extratags = item.extratags || {};
+      const { category, is24Hours } = classifyGym({
+        name,
+        sport: extratags.sport || '',
+        opening_hours: extratags.opening_hours || '',
+      });
+
+      results.push({
+        id: `nom_${item.osm_type || 'n'}_${item.osm_id || item.place_id}`,
+        name,
+        lat,
+        lng,
+        address: formatNominatimAddress(item, lat, lng),
+        openingHours: extratags.opening_hours || (is24Hours ? 'Open 24/7' : ''),
+        category,
+        is24Hours,
+        distanceKm,
+      });
+    }
+    return results;
+  } finally {
+    cleanup();
+  }
+}
+
+async function fetchPhotonGyms(center, radiusKm, originForDistance, signal) {
+  const params = new URLSearchParams({
+    q: 'gym',
+    lat: String(center.lat),
+    lon: String(center.lng),
+    limit: '25',
+  });
+
+  const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, 6000);
+  try {
+    const res = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
+      signal: timedSignal,
+    });
+    if (!res.ok) throw new Error(`Photon ${res.status}`);
+    const data = await res.json();
+    const features = Array.isArray(data?.features) ? data.features : [];
+
+    const results = [];
+    for (const feat of features) {
+      const coords = feat?.geometry?.coordinates;
+      const props = feat?.properties || {};
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+
+      const lng = Number(coords[0]);
+      const lat = Number(coords[1]);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+
+      const name = props.name || 'Fitness Center';
+      if (!isLikelyGym(name, props.osm_key, props.osm_value)) continue;
+
+      const distanceKm = haversineKm(originForDistance, { lat, lng });
+      if (distanceKm > radiusKm * 1.25) continue;
+
+      const address =
+        [
+          [props.housenumber, props.street].filter(Boolean).join(' '),
+          props.district || props.city || props.county,
+        ]
+          .filter(Boolean)
+          .join(', ') || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+      const { category, is24Hours } = classifyGym({ name });
+
+      results.push({
+        id: `pho_${props.osm_type || 'n'}_${props.osm_id || `${lat.toFixed(4)}_${lng.toFixed(4)}`}`,
+        name,
+        lat,
+        lng,
+        address,
+        openingHours: '',
+        category,
+        is24Hours,
+        distanceKm,
+      });
+    }
+    return results;
+  } finally {
+    cleanup();
+  }
+}
+
+async function fetchNearbyGymsMultiSource(center, radiusKm, originForDistance, signal) {
+  const refPoint = originForDistance || center;
+  const collected = [];
+
+  // Run fast OSM Nominatim + Photon queries alongside Overpass (no single-provider failure!)
+  const [overpassRes, nomTagRes, photonRes] = await Promise.allSettled([
+    tryOverpassGyms(center, radiusKm, refPoint, signal),
+    fetchNominatimGyms(center, radiusKm, refPoint, '[leisure=fitness_centre]', signal),
+    fetchPhotonGyms(center, radiusKm, refPoint, signal),
+  ]);
+
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  if (overpassRes.status === 'fulfilled') collected.push(...overpassRes.value);
+  if (nomTagRes.status === 'fulfilled') collected.push(...nomTagRes.value);
+  if (photonRes.status === 'fulfilled') collected.push(...photonRes.value);
+
+  // If few gyms found by tag/photon, also query text "gym" in Nominatim bounded to radius
+  if (collected.length < 4 && !signal?.aborted) {
+    try {
+      const nomGymText = await fetchNominatimGyms(center, radiusKm, refPoint, 'gym', signal);
+      collected.push(...nomGymText);
     } catch (err) {
       if (err.name === 'AbortError') throw err;
-      lastError = err;
     }
   }
 
-  if (!data) {
-    throw lastError || new Error('Failed to load nearby gyms.');
+  if (
+    collected.length === 0 &&
+    overpassRes.status === 'rejected' &&
+    nomTagRes.status === 'rejected' &&
+    photonRes.status === 'rejected'
+  ) {
+    throw new Error('Could not reach free OpenStreetMap gym directory.');
   }
 
-  const elements = Array.isArray(data.elements) ? data.elements : [];
+  // Deduplicate by name + rounded coordinates
   const seen = new Set();
-  const gyms = [];
-  const refPoint = originForDistance || center;
-
-  for (const el of elements) {
-    const lat = typeof el.lat === 'number' ? el.lat : el.center?.lat;
-    const lng = typeof el.lon === 'number' ? el.lon : el.center?.lon;
-    if (typeof lat !== 'number' || typeof lng !== 'number') continue;
-
-    const tags = el.tags || {};
-    const name = tags.name || tags.brand || tags.operator || 'Fitness Center';
-    const dedupKey = `${name.toLowerCase()}_${lat.toFixed(4)}_${lng.toFixed(4)}`;
-    if (seen.has(dedupKey)) continue;
-    seen.add(dedupKey);
-
-    const { category, is24Hours } = classifyGym(tags);
-    const distanceKm = haversineKm(refPoint, { lat, lng });
-
-    gyms.push({
-      id: `${el.type}_${el.id}`,
-      name,
-      lat,
-      lng,
-      address: formatOsmAddress(tags, lat, lng),
-      openingHours: tags.opening_hours || (is24Hours ? 'Open 24/7' : ''),
-      category,
-      is24Hours,
-      distanceKm,
-      phone: tags.phone || tags['contact:phone'] || '',
-      website: tags.website || tags['contact:website'] || '',
-    });
+  const deduped = [];
+  for (const gym of collected) {
+    const key = `${gym.name.toLowerCase().replace(/\s+/g, '')}_${gym.lat.toFixed(3)}_${gym.lng.toFixed(3)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(gym);
   }
 
-  gyms.sort((a, b) => a.distanceKm - b.distanceKm);
-  return gyms;
+  deduped.sort((a, b) => a.distanceKm - b.distanceKm);
+  return deduped;
 }
 
 async function searchPlacesNominatim(queryText, nearCenter, signal) {
@@ -217,6 +438,20 @@ async function searchPlacesNominatim(queryText, nearCenter, signal) {
     title: item.display_name?.split(',')[0] || queryText,
     subtitle: item.display_name || '',
   }));
+}
+
+async function fetchIpApproxLocation(signal) {
+  const res = await fetch('https://get.geojs.io/v1/ip/geo.json', { signal });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const lat = Number(data?.latitude);
+  const lng = Number(data?.longitude);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  return {
+    lat,
+    lng,
+    city: [data.city, data.country].filter(Boolean).join(', '),
+  };
 }
 
 function createUserBeaconIcon() {
@@ -278,6 +513,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
   const [followUser, setFollowUser] = useState(true);
   const [gpsStatus, setGpsStatus] = useState('locating');
   const [gpsError, setGpsError] = useState('');
+  const [approxCityLabel, setApproxCityLabel] = useState('');
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -288,7 +524,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
   const gymMarkerMapRef = useRef(new Map());
   const searchMarkerRef = useRef(null);
   const watchIdRef = useRef(null);
-  const overpassAbortRef = useRef(null);
+  const discoveryAbortRef = useRef(null);
   const nominatimAbortRef = useRef(null);
   const hasCenteredInitialRef = useRef(Boolean(cachedGps));
   const userLocationRef = useRef(cachedGps);
@@ -343,27 +579,53 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
     };
   }, [cachedGps, initialCenter.lat, initialCenter.lng]);
 
-  // Live Browser Geolocation tracking
+  // Live Browser Geolocation tracking + fast IP city fallback if GPS is blocked
   useEffect(() => {
+    let cancelled = false;
+    const ipAbortController = new AbortController();
+
     if (!trackingEnabled) {
       if (watchIdRef.current !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
       setGpsStatus((prev) => (prev === 'denied' || prev === 'unsupported' ? prev : 'paused'));
-      return;
+      return () => {
+        ipAbortController.abort();
+      };
     }
+
+    const fallbackToIpCity = async () => {
+      if (cancelled || hasCenteredInitialRef.current || userLocationRef.current) return;
+      try {
+        const approx = await fetchIpApproxLocation(ipAbortController.signal);
+        if (!approx || cancelled || hasCenteredInitialRef.current) return;
+        hasCenteredInitialRef.current = true;
+        setApproxCityLabel(approx.city || '');
+        setSearchCenter({ lat: approx.lat, lng: approx.lng });
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([approx.lat, approx.lng], 13, { animate: true });
+        }
+      } catch {
+        // ignore fallback failure
+      }
+    };
 
     if (!('geolocation' in navigator)) {
       setGpsStatus('unsupported');
-      setGpsError('Browser geolocation is not supported. Search a city or gym above.');
-      return;
+      setGpsError('Browser geolocation is not supported. Showing approximate area — search any city above.');
+      fallbackToIpCity();
+      return () => {
+        cancelled = true;
+        ipAbortController.abort();
+      };
     }
 
     setGpsStatus('locating');
     setGpsError('');
 
     const handlePosition = (pos) => {
+      if (cancelled) return;
       const nextPos = {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -374,6 +636,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
       setUserLocation(nextPos);
       setGpsStatus('tracking');
       setGpsError('');
+      setApproxCityLabel('');
 
       try {
         localStorage.setItem(LAST_GPS_STORAGE_KEY, JSON.stringify(nextPos));
@@ -391,24 +654,35 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
     };
 
     const handleGeoError = (err) => {
+      if (cancelled) return;
       console.warn('Browser geolocation issue:', err);
       setGpsStatus('denied');
       if (err.code === 1) {
         setGpsError(
-          'Location permission denied. Allow browser location access or search any city above.'
+          'Browser location permission blocked. Allow location access or search your city above.'
         );
       } else {
-        setGpsError('Unable to read live GPS right now. You can search any location above.');
+        setGpsError('Unable to lock exact GPS right now. You can search your city or neighborhood above.');
       }
+      fallbackToIpCity();
     };
+
+    // Quick coarse fix so users see nearby gyms quickly even before fine GPS locks
+    navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {
+      enableHighAccuracy: false,
+      maximumAge: 60000,
+      timeout: 5000,
+    });
 
     watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleGeoError, {
       enableHighAccuracy: true,
-      maximumAge: 5000,
+      maximumAge: 10000,
       timeout: 12000,
     });
 
     return () => {
+      cancelled = true;
+      ipAbortController.abort();
       if (watchIdRef.current !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
@@ -416,20 +690,21 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
     };
   }, [trackingEnabled]);
 
-  // Load nearby gyms via Overpass API whenever searchCenter or radiusKm changes
-  const runOverpassSearch = useCallback(async (center, radius) => {
-    if (overpassAbortRef.current) {
-      overpassAbortRef.current.abort();
+  // Discover nearby gyms whenever searchCenter or radiusKm changes
+  const runNearbyGymDiscovery = useCallback(async (center, radius) => {
+    if (discoveryAbortRef.current) {
+      discoveryAbortRef.current.abort();
     }
     const controller = new AbortController();
-    overpassAbortRef.current = controller;
+    discoveryAbortRef.current = controller;
 
     setLoadingGyms(true);
     setGymError('');
 
     try {
       const origin = userLocationRef.current || center;
-      const results = await fetchNearbyGymsOverpass(center, radius, origin, controller.signal);
+      const results = await fetchNearbyGymsMultiSource(center, radius, origin, controller.signal);
+      if (controller.signal.aborted) return;
       setGyms(results);
       if (results.length > 0) {
         setSelectedGymId((prev) => (results.some((g) => g.id === prev) ? prev : null));
@@ -438,23 +713,25 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
-      console.warn('Overpass gym lookup issue:', err);
+      console.warn('Nearby gym lookup issue:', err);
       setGymError('Could not load nearby gyms right now. Click "Search This Area" to retry.');
     } finally {
-      setLoadingGyms(false);
+      if (!controller.signal.aborted) {
+        setLoadingGyms(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    runOverpassSearch(searchCenter, radiusKm);
+    runNearbyGymDiscovery(searchCenter, radiusKm);
     return () => {
-      if (overpassAbortRef.current) {
-        overpassAbortRef.current.abort();
+      if (discoveryAbortRef.current) {
+        discoveryAbortRef.current.abort();
       }
     };
-  }, [searchCenter, radiusKm, runOverpassSearch]);
+  }, [searchCenter, radiusKm, runNearbyGymDiscovery]);
 
-  // Filter gyms by selected category and optional text filter
+  // Filter gyms by selected category
   const filteredGyms = useMemo(() => {
     return gyms.filter((gym) => {
       if (selectedCategory === 'All') return true;
@@ -584,7 +861,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
     });
   }, [filteredGyms, selectedGymId]);
 
-  // Update Searched Place Pin (when user searches a specific address/city)
+  // Update Searched Place Pin
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -650,6 +927,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
         };
         setUserLocation(nextPos);
         setGpsStatus('tracking');
+        setApproxCityLabel('');
         setSearchedPlace(null);
         setSearchCenter({ lat: nextPos.lat, lng: nextPos.lng });
         try {
@@ -665,10 +943,10 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
         console.warn('Manual geolocation failed:', err);
         setGpsStatus('denied');
         setGpsError(
-          'Location access was blocked. Allow browser location permission or search a city above.'
+          'Location access was blocked. Allow browser location permission or search your city above.'
         );
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: false, timeout: 8000 }
     );
   };
 
@@ -752,7 +1030,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
     }
   };
 
-  const displayedGyms = mode === 'compact' ? filteredGyms.slice(0, 4) : filteredGyms;
+  const displayedGyms = mode === 'compact' ? filteredGyms.slice(0, 6) : filteredGyms;
 
   return (
     <div className={`google-gym-locator ${mode === 'compact' ? 'compact-mode' : 'full-mode'}`}>
@@ -892,7 +1170,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
         </div>
       </div>
 
-      {/* Geolocation or Overpass Notice */}
+      {/* Geolocation or Discovery Notice */}
       {(gpsError || gymError) && (
         <div className="gmp-inline-notice" role="status">
           <span>{gymError || gpsError}</span>
@@ -929,6 +1207,10 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
               ) : searchedPlace ? (
                 <>
                   <strong>Viewing:</strong> {searchedPlace.title}
+                </>
+              ) : approxCityLabel ? (
+                <>
+                  <strong>Near:</strong> {approxCityLabel} ({radiusKm} km radius)
                 </>
               ) : (
                 <strong>Showing gyms within {radiusKm} km</strong>
@@ -975,8 +1257,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
               {loadingGyms ? '(Scanning...)' : `(${filteredGyms.length})`}
             </h3>
             <span>
-              Within {radiusKm} km • Free OpenStreetMap + Overpass discovery with Google Maps
-              navigation
+              Within {radiusKm} km • Free OpenStreetMap discovery with Google Maps navigation
             </span>
           </div>
         </div>

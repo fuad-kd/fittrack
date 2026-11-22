@@ -4,6 +4,9 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
 }
 
 .map-page-header {
@@ -47,13 +50,15 @@
   margin: 0;
 }
 
-/* Shared Google Gym Locator Container */
+/* Shared Gym Locator Container */
 .google-gym-locator {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   width: 100%;
   min-width: 0;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .gmp-controls-bar {
@@ -420,6 +425,8 @@
 .gmp-map-canvas-shell {
   width: 100%;
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   background: #0b0f17;
 
   &.is-full {
@@ -702,14 +709,16 @@
 }
 
 .gym-card-tile {
-  background: rgba(17, 24, 38, 0.72);
+  background: rgba(17, 24, 38, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 1.2rem;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: all 0.2s ease;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 
   &:hover {
     border-color: rgba(245, 158, 11, 0.35);

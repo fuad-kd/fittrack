@@ -682,6 +682,10 @@ const Dashboard = () => {
   useEffect(() => {
     if (activeTab === 'home') {
       refreshSocialHighlights();
+    } else {
+      setIsEditModalOpen(false);
+      setSelectedPhotoModal(null);
+      setDashboardLightbox(null);
     }
   }, [activeTab, refreshSocialHighlights]);
 
@@ -689,9 +693,9 @@ const Dashboard = () => {
   useEffect(() => {
     if (activeTab === 'home') {
       const ctx = gsap.context(() => {
-        gsap.from('.dash-hero-banner', { opacity: 0, y: -20, duration: 0.5, ease: 'power2.out' });
-        gsap.from('.stat-metric-card', { opacity: 0, y: 15, duration: 0.4, stagger: 0.06, ease: 'power2.out', delay: 0.1 });
-        gsap.from('.dashboard-section', { opacity: 0, y: 25, duration: 0.45, stagger: 0.08, ease: 'power2.out', delay: 0.2 });
+        gsap.from('.dash-hero-banner', { opacity: 0, y: -20, duration: 0.45, ease: 'power2.out', clearProps: 'opacity,transform' });
+        gsap.from('.stat-metric-card', { opacity: 0, y: 15, duration: 0.35, stagger: 0.05, ease: 'power2.out', delay: 0.05, clearProps: 'opacity,transform' });
+        gsap.from('.dashboard-section:not(.widget-gym-map)', { opacity: 0, y: 20, duration: 0.4, stagger: 0.06, ease: 'power2.out', delay: 0.1, clearProps: 'opacity,transform' });
       }, overviewRef);
       return () => ctx.revert();
     }
