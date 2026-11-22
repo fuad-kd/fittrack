@@ -2842,7 +2842,7 @@ const Dashboard = () => {
                   <div>
                     <div className="widget-badge-tag gold">GYM LOCATOR</div>
                     <h2 className="section-title">Nearby Training Centers</h2>
-                    <p className="section-desc">Live GPS tracking with nearby gyms, ratings, and directions via Google Maps</p>
+                    <p className="section-desc">Live browser GPS tracking showing nearby gyms within your radius and directions</p>
                   </div>
 
                   <div className="map-action-pills">

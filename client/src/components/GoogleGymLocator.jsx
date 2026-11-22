@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FreeLiveGymMap from './FreeLiveGymMap';
 import {
   APIProvider,
   APILoadingStatus,
@@ -627,6 +628,10 @@ function GoogleGymLocatorInner({ mode = 'full', onOpenFullMap }) {
   const mapAuthFailed =
     apiStatus === APILoadingStatus.FAILED || apiStatus === APILoadingStatus.AUTH_FAILURE;
 
+  if (mapAuthFailed) {
+    return <FreeLiveGymMap mode={mode} onOpenFullMap={onOpenFullMap} />;
+  }
+
   return (
     <div className={`google-gym-locator ${mode === 'compact' ? 'compact-mode' : 'full-mode'}`}>
       {/* Search & Controls */}
@@ -1010,6 +1015,9 @@ function GoogleGymLocatorInner({ mode = 'full', onOpenFullMap }) {
 }
 
 const GoogleGymLocator = (props) => {
+  if (!GOOGLE_MAPS_API_KEY) {
+    return <FreeLiveGymMap {...props} />;
+  }
   return <GoogleGymLocatorInner {...props} />;
 };
 

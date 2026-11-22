@@ -20,7 +20,7 @@ const GymMap = () => {
           </div>
           <div>
             <h2>Fitness Centers &amp; Gym Locator</h2>
-            <p>Live GPS location tracking with real-time nearby gyms powered by Google Maps.</p>
+            <p>Live browser GPS location tracking to discover nearby gyms and directions.</p>
           </div>
         </div>
       </div>
