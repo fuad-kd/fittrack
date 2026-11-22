@@ -1,57 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Clock,
   Compass,
   ExternalLink,
   Loader2,
   LocateFixed,
   MapPin,
-  Navigation,
   Pause,
   Play,
-  RefreshCw,
   Search,
+  X,
 } from 'lucide-react';
 
 const DEFAULT_CENTER = { lat: 40.758, lng: -73.9855 };
 const LAST_GPS_STORAGE_KEY = 'fittrack_last_browser_gps';
-
-const FACILITY_FILTERS = ['All', '24/7 Gym', 'CrossFit Box', 'Powerlifting', 'Yoga Studio'];
-
-const RADIUS_OPTIONS = [
-  { label: '1 km', meters: 1000 },
-  { label: '2 km', meters: 2000 },
-  { label: '5 km', meters: 5000 },
-  { label: '10 km', meters: 10000 },
-  { label: '25 km', meters: 25000 },
-];
-
-const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-];
-
-function haversineMeters(a, b) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const R = 6371000;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const sinLat = Math.sin(dLat / 2);
-  const sinLng = Math.sin(dLng / 2);
-  const h =
-    sinLat * sinLat +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLng * sinLng;
-  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
-
-function formatDistance(meters) {
-  if (typeof meters !== 'number' || !Number.isFinite(meters)) return null;
-  if (meters < 1000) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
-}
 
 function escapeHtml(str = '') {
   return String(str)
@@ -60,168 +23,6 @@ function escapeHtml(str = '') {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-function buildDirectionsUrl(gym, userLocation) {
-  const dest = `${gym.position.lat},${gym.position.lng}`;
-  const params = new URLSearchParams({
-    api: '1',
-    destination: dest,
-  });
-  if (userLocation) {
-    params.set('origin', `${userLocation.lat},${userLocation.lng}`);
-  }
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
-}
-
-function buildOsmUrl(gym) {
-  return `https://www.openstreetmap.org/?mlat=${gym.position.lat}&mlon=${gym.position.lng}#map=17/${gym.position.lat}/${gym.position.lng}`;
-}
-
-function classifyGym(tags = {}) {
-  const combined = `${tags.name || ''} ${tags.sport || ''} ${tags.description || ''}`.toLowerCase();
-  const is24 = tags.opening_hours === '24/7';
-  if (combined.includes('crossfit')) return 'CrossFit Box';
-  if (combined.includes('yoga') || combined.includes('pilates')) return 'Yoga Studio';
-  if (
-    combined.includes('powerlift') ||
-    combined.includes('weightlift') ||
-    combined.includes('barbell') ||
-    combined.includes('strength')
-  ) {
-    return 'Powerlifting';
-  }
-  if (is24) return '24/7 Gym';
-  return 'Gym & Fitness';
-}
-
-function matchesFacilityFilter(gym, filter) {
-  if (filter === 'All') return true;
-  if (filter === '24/7 Gym') {
-    return gym.is24Hours || gym.typeLabel === '24/7 Gym' || gym.name.toLowerCase().includes('24');
-  }
-  return gym.typeLabel === filter;
-}
-
-function formatOsmAddress(tags = {}) {
-  if (tags['addr:full']) return tags['addr:full'];
-  const streetLine = [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
-  const areaLine = [
-    tags['addr:suburb'] || tags['addr:neighbourhood'],
-    tags['addr:city'] || tags['addr:town'],
-  ]
-    .filter(Boolean)
-    .join(', ');
-  const combined = [streetLine, areaLine].filter(Boolean).join(', ');
-  return combined || 'Nearby training facility';
-}
-
-function normalizeOverpassElements(elements, origin) {
-  const seen = new Set();
-  const gyms = [];
-
-  for (const el of elements || []) {
-    const lat = el.lat ?? el.center?.lat;
-    const lng = el.lon ?? el.center?.lon;
-    if (typeof lat !== 'number' || typeof lng !== 'number') continue;
-
-    const tags = el.tags || {};
-    const rawName = tags.name || tags['name:en'] || tags.brand || tags.operator || '';
-    const isExplicitGym = tags.leisure === 'fitness_centre' || tags.amenity === 'gym';
-    if (!rawName && !isExplicitGym) continue;
-
-    const name = rawName.trim() || 'Local Fitness Center';
-    const dedupKey = `${name.toLowerCase()}_${lat.toFixed(4)}_${lng.toFixed(4)}`;
-    if (seen.has(dedupKey)) continue;
-    seen.add(dedupKey);
-
-    const pos = { lat, lng };
-    const distanceMeters = origin ? haversineMeters(origin, pos) : null;
-
-    gyms.push({
-      id: `osm-${el.type}-${el.id}`,
-      name,
-      position: pos,
-      address: formatOsmAddress(tags),
-      typeLabel: classifyGym(tags),
-      is24Hours: tags.opening_hours === '24/7',
-      todayHours: tags.opening_hours || null,
-      phone: tags.phone || tags['contact:phone'] || null,
-      website: tags.website || tags['contact:website'] || null,
-      distanceMeters,
-    });
-  }
-
-  return gyms.sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
-}
-
-async function fetchOverpassGyms(center, radiusMeters, signal) {
-  const radius = Math.min(Math.max(Number(radiusMeters) || 5000, 500), 25000);
-  const { lat, lng } = center;
-
-  const query = `
-[out:json][timeout:15];
-(
-  node["leisure"="fitness_centre"](around:${radius},${lat},${lng});
-  way["leisure"="fitness_centre"](around:${radius},${lat},${lng});
-  relation["leisure"="fitness_centre"](around:${radius},${lat},${lng});
-  node["amenity"="gym"](around:${radius},${lat},${lng});
-  way["amenity"="gym"](around:${radius},${lat},${lng});
-  node["leisure"="sports_centre"]["sport"~"fitness|weightlifting|crossfit|gym|bodybuilding|yoga|boxing|martial_arts",i](around:${radius},${lat},${lng});
-  way["leisure"="sports_centre"]["sport"~"fitness|weightlifting|crossfit|gym|bodybuilding|yoga|boxing|martial_arts",i](around:${radius},${lat},${lng});
-);
-out center tags 80;
-`.trim();
-
-  let lastError = null;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: `data=${encodeURIComponent(query)}`,
-        signal,
-      });
-      if (!response.ok) {
-        lastError = new Error(`Overpass returned HTTP ${response.status}`);
-        continue;
-      }
-      const data = await response.json();
-      return data?.elements || [];
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-      lastError = err;
-    }
-  }
-  throw lastError || new Error('Could not reach OpenStreetMap gym directory.');
-}
-
-async function geocodePlaceNominatim(queryText, nearCenter, signal) {
-  const params = new URLSearchParams({
-    format: 'json',
-    limit: '5',
-    q: queryText,
-  });
-  if (nearCenter) {
-    const d = 0.25;
-    params.set(
-      'viewbox',
-      `${nearCenter.lng - d},${nearCenter.lat + d},${nearCenter.lng + d},${nearCenter.lat - d}`
-    );
-  }
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
-    signal,
-  });
-  if (!res.ok) throw new Error('Area search failed.');
-  const items = await res.json();
-  if (!Array.isArray(items) || items.length === 0) return null;
-  const first = items[0];
-  return {
-    lat: Number(first.lat),
-    lng: Number(first.lon),
-    label: first.display_name?.split(',').slice(0, 2).join(', ') || queryText,
-  };
 }
 
 function loadCachedGps() {
@@ -250,61 +51,83 @@ function createUserBeaconIcon() {
   });
 }
 
-function createGymPinIcon(isSelected) {
+function createSearchPinIcon() {
   return L.divIcon({
-    className: `free-gym-pin-wrapper ${isSelected ? 'is-selected' : ''}`,
-    html: `<div class="free-gym-pin ${isSelected ? 'is-selected' : ''}">
+    className: 'free-gym-pin-wrapper is-selected',
+    html: `<div class="free-gym-pin is-selected">
       <span class="free-gym-pin-dot"></span>
     </div>`,
-    iconSize: isSelected ? [32, 32] : [26, 26],
-    iconAnchor: isSelected ? [16, 30] : [13, 24],
+    iconSize: [30, 30],
+    iconAnchor: [15, 28],
     popupAnchor: [0, -26],
   });
+}
+
+function buildDirectionsUrl(target, userLocation) {
+  const params = new URLSearchParams({
+    api: '1',
+    destination: `${target.lat},${target.lng}`,
+  });
+  if (userLocation) {
+    params.set('origin', `${userLocation.lat},${userLocation.lng}`);
+  }
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+async function searchPlacesNominatim(queryText, nearCenter, signal) {
+  const params = new URLSearchParams({
+    format: 'json',
+    limit: '5',
+    q: queryText,
+  });
+  if (nearCenter) {
+    const d = 0.35;
+    params.set(
+      'viewbox',
+      `${nearCenter.lng - d},${nearCenter.lat + d},${nearCenter.lng + d},${nearCenter.lat - d}`
+    );
+  }
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!res.ok) throw new Error('Location search failed.');
+  const items = await res.json();
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    id: `${item.place_id}`,
+    lat: Number(item.lat),
+    lng: Number(item.lon),
+    title: item.display_name?.split(',')[0] || queryText,
+    subtitle: item.display_name || '',
+  }));
 }
 
 export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
   const cachedGps = useMemo(() => loadCachedGps(), []);
 
   const [searchInput, setSearchInput] = useState('');
-  const [appliedNameFilter, setAppliedNameFilter] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
-  const [radiusMeters, setRadiusMeters] = useState(5000);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedPlace, setSelectedPlace] = useState(null);
 
   const [userLocation, setUserLocation] = useState(cachedGps);
   const [trackingEnabled, setTrackingEnabled] = useState(true);
   const [followUser, setFollowUser] = useState(true);
-  const [gpsStatus, setGpsStatus] = useState(cachedGps ? 'locating' : 'locating');
+  const [gpsStatus, setGpsStatus] = useState('locating');
   const [gpsError, setGpsError] = useState('');
-
-  const [searchCenter, setSearchCenter] = useState(
-    cachedGps ? { lat: cachedGps.lat, lng: cachedGps.lng } : null
-  );
-  const [pannedCenter, setPannedCenter] = useState(null);
-  const [activeQueryLabel, setActiveQueryLabel] = useState(
-    cachedGps ? 'Refreshing your live GPS position...' : 'Waiting for browser location...'
-  );
-
-  const [rawGyms, setRawGyms] = useState([]);
-  const [searchingPlaces, setSearchingPlaces] = useState(false);
-  const [placesError, setPlacesError] = useState('');
-  const [selectedGymId, setSelectedGymId] = useState(null);
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const userMarkerRef = useRef(null);
-  const searchPinMarkerRef = useRef(null);
   const accuracyCircleRef = useRef(null);
-  const radiusCircleRef = useRef(null);
-  const gymLayerGroupRef = useRef(null);
-  const gymMarkersMapRef = useRef(new Map());
-
+  const searchMarkerRef = useRef(null);
   const watchIdRef = useRef(null);
-  const lastAutoSearchPosRef = useRef(cachedGps ? { lat: cachedGps.lat, lng: cachedGps.lng } : null);
   const searchAbortRef = useRef(null);
-  const searchSeqRef = useRef(0);
-  const lastMapClickRef = useRef(0);
+  const hasCenteredInitialRef = useRef(Boolean(cachedGps));
 
-  // Initialize Leaflet map instance
+  // Initialize Leaflet map (100% API-key-free)
   useEffect(() => {
     const container = mapContainerRef.current;
     if (!container || mapInstanceRef.current) return;
@@ -315,7 +138,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
 
     const map = L.map(container, {
       center: initialCenter,
-      zoom: cachedGps ? 14 : 12,
+      zoom: cachedGps ? 15 : 13,
       zoomControl: true,
       attributionControl: true,
     });
@@ -326,80 +149,40 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
       maxZoom: 19,
     }).addTo(map);
 
-    const gymLayer = L.layerGroup().addTo(map);
-    gymLayerGroupRef.current = gymLayer;
     mapInstanceRef.current = map;
 
-    map.on('dragend', () => {
-      const c = map.getCenter();
-      if (c) {
-        setFollowUser(false);
-        setPannedCenter({ lat: c.lat, lng: c.lng });
-      }
+    map.on('dragstart', () => {
+      setFollowUser(false);
+    });
+
+    map.on('click', (e) => {
+      const clicked = {
+        id: `pin_${Date.now()}`,
+        lat: e.latlng.lat,
+        lng: e.latlng.lng,
+        title: 'Pinned Location',
+        subtitle: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
+      };
+      setFollowUser(false);
+      setSelectedPlace(clicked);
     });
 
     const resizeObserver = new ResizeObserver(() => {
       map.invalidateSize();
     });
     resizeObserver.observe(container);
-    const markersMap = gymMarkersMapRef.current;
 
     return () => {
       resizeObserver.disconnect();
       map.remove();
       mapInstanceRef.current = null;
       userMarkerRef.current = null;
-      searchPinMarkerRef.current = null;
       accuracyCircleRef.current = null;
-      radiusCircleRef.current = null;
-      gymLayerGroupRef.current = null;
-      markersMap.clear();
+      searchMarkerRef.current = null;
     };
   }, [cachedGps]);
 
-  const runNearbyGymSearch = useCallback(
-    async ({ center, radius = radiusMeters, livePos = userLocation, labelOverride = null }) => {
-      if (!center) return;
-
-      if (searchAbortRef.current) {
-        searchAbortRef.current.abort();
-      }
-      const controller = new AbortController();
-      searchAbortRef.current = controller;
-      const reqSeq = ++searchSeqRef.current;
-
-      setSearchingPlaces(true);
-      setPlacesError('');
-
-      try {
-        const elements = await fetchOverpassGyms(center, radius, controller.signal);
-        if (reqSeq !== searchSeqRef.current) return;
-
-        const referenceOrigin = livePos || center;
-        const normalized = normalizeOverpassElements(elements, referenceOrigin).filter(
-          (g) => g.distanceMeters == null || g.distanceMeters <= radius * 1.15
-        );
-
-        setRawGyms(normalized);
-        setPannedCenter(null);
-        setSelectedGymId(null);
-
-        const kmLabel = radius < 1000 ? `${radius} m` : `${(radius / 1000).toFixed(0)} km`;
-        setActiveQueryLabel(labelOverride || `Nearby gyms within ${kmLabel}`);
-      } catch (err) {
-        if (err.name === 'AbortError' || reqSeq !== searchSeqRef.current) return;
-        console.warn('Overpass nearby gym lookup failed:', err);
-        setPlacesError('Could not fetch nearby gym directory right now. Click Search or Near Me to retry.');
-      } finally {
-        if (reqSeq === searchSeqRef.current) {
-          setSearchingPlaces(false);
-        }
-      }
-    },
-    [radiusMeters, userLocation]
-  );
-
-  // Live Browser Geolocation tracking (no API key required)
+  // Live Browser Geolocation tracking
   useEffect(() => {
     if (!trackingEnabled) {
       if (watchIdRef.current !== null && navigator.geolocation) {
@@ -412,8 +195,7 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
 
     if (!('geolocation' in navigator)) {
       setGpsStatus('unsupported');
-      setGpsError('Browser geolocation is unavailable. Search your city above or click on the map to set your location.');
-      setActiveQueryLabel('Manual location mode');
+      setGpsError('Browser geolocation is not supported. Use the search bar above or click the map.');
       return;
     }
 
@@ -435,32 +217,22 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
       try {
         localStorage.setItem(LAST_GPS_STORAGE_KEY, JSON.stringify(nextPos));
       } catch {
-        // ignore storage quota
+        // ignore storage quota errors
       }
 
-      const prevAuto = lastAutoSearchPosRef.current;
-      const movedMeters = prevAuto ? haversineMeters(prevAuto, nextPos) : Infinity;
-
-      if (!prevAuto || movedMeters > 300) {
-        const centerObj = { lat: nextPos.lat, lng: nextPos.lng };
-        lastAutoSearchPosRef.current = nextPos;
-        setSearchCenter(centerObj);
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([centerObj.lat, centerObj.lng], 14, { animate: true });
-        }
+      if (!hasCenteredInitialRef.current && mapInstanceRef.current) {
+        hasCenteredInitialRef.current = true;
+        mapInstanceRef.current.setView([nextPos.lat, nextPos.lng], 15, { animate: true });
       }
     };
 
     const handleGeoError = (err) => {
-      console.warn('Browser geolocation error:', err);
+      console.warn('Browser geolocation issue:', err);
       setGpsStatus('denied');
       if (err.code === 1) {
-        setGpsError('Location permission denied. Allow browser location access, search a city above, or click anywhere on the map.');
+        setGpsError('Location permission denied. Allow browser location access, search a place above, or click the map.');
       } else {
-        setGpsError('Unable to read live GPS right now. Search a city above or click the map to pin your area.');
-      }
-      if (!searchCenter) {
-        setActiveQueryLabel('Search city or click map to set location');
+        setGpsError('Unable to read live GPS right now. Use the search bar above or click anywhere on the map.');
       }
     };
 
@@ -476,228 +248,96 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
         watchIdRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackingEnabled]);
 
-  // Allow clicking on map to set reference location when GPS is denied/unavailable
+  // Update Live User GPS Marker + Accuracy Circle
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
+    if (!map || !userLocation) return;
 
-    const onMapClick = (e) => {
-      if (gpsStatus === 'tracking' && trackingEnabled) return;
-      const now = Date.now();
-      if (now - lastMapClickRef.current < 300) return;
-      lastMapClickRef.current = now;
+    const latLng = [userLocation.lat, userLocation.lng];
 
-      const clicked = { lat: e.latlng.lat, lng: e.latlng.lng };
-      setFollowUser(false);
-      setSearchCenter(clicked);
-      setPannedCenter(null);
-      runNearbyGymSearch({
-        center: clicked,
-        radius: radiusMeters,
-        livePos: userLocation,
-        labelOverride: `Nearby gyms within ${(radiusMeters / 1000).toFixed(0)} km of pinned spot`,
-      });
-    };
-
-    map.on('click', onMapClick);
-    return () => {
-      map.off('click', onMapClick);
-    };
-  }, [gpsStatus, trackingEnabled, radiusMeters, userLocation, runNearbyGymSearch]);
-
-  // Trigger Overpass query whenever searchCenter or radiusMeters changes
-  useEffect(() => {
-    if (!searchCenter) return;
-    runNearbyGymSearch({
-      center: searchCenter,
-      radius: radiusMeters,
-      livePos: userLocation,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchCenter, radiusMeters]);
-
-  // Compute strict nearby gyms (within radius + facility filter + optional name filter)
-  const gymsWithLiveDistance = useMemo(() => {
-    const origin = userLocation || searchCenter;
-    const nameTerm = appliedNameFilter.trim().toLowerCase();
-
-    return rawGyms
-      .map((g) => ({
-        ...g,
-        distanceMeters: origin ? haversineMeters(origin, g.position) : g.distanceMeters,
-      }))
-      .filter((g) => {
-        if (searchCenter) {
-          const distFromSearchCenter = haversineMeters(searchCenter, g.position);
-          if (distFromSearchCenter > radiusMeters) return false;
-        }
-        if (!matchesFacilityFilter(g, activeFilter)) return false;
-        if (nameTerm) {
-          const haystack = `${g.name} ${g.address} ${g.typeLabel}`.toLowerCase();
-          if (!haystack.includes(nameTerm)) return false;
-        }
-        return true;
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = L.marker(latLng, {
+        icon: createUserBeaconIcon(),
+        zIndexOffset: 1200,
       })
-      .sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
-  }, [rawGyms, userLocation, searchCenter, radiusMeters, activeFilter, appliedNameFilter]);
-
-  const visibleGyms = mode === 'compact' ? gymsWithLiveDistance.slice(0, 4) : gymsWithLiveDistance;
-
-  // Update User GPS Marker, Accuracy Circle, and Search Radius Circle on Leaflet Map
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    const activeCenter = userLocation
-      ? { lat: userLocation.lat, lng: userLocation.lng }
-      : searchCenter;
-
-    if (userLocation) {
-      const latLng = [userLocation.lat, userLocation.lng];
-      if (!userMarkerRef.current) {
-        userMarkerRef.current = L.marker(latLng, {
-          icon: createUserBeaconIcon(),
-          zIndexOffset: 1200,
-        })
-          .bindTooltip(
-            `Your live location${userLocation.accuracy ? ` (±${Math.round(userLocation.accuracy)}m)` : ''}`,
-            { direction: 'top' }
-          )
-          .addTo(map);
-      } else {
-        userMarkerRef.current.setLatLng(latLng);
-      }
-
-      if (userLocation.accuracy) {
-        const clampedAcc = Math.min(Math.max(userLocation.accuracy, 15), 1500);
-        if (!accuracyCircleRef.current) {
-          accuracyCircleRef.current = L.circle(latLng, {
-            radius: clampedAcc,
-            color: '#38bdf8',
-            opacity: 0.55,
-            weight: 1.5,
-            fillColor: '#38bdf8',
-            fillOpacity: 0.12,
-            interactive: false,
-          }).addTo(map);
-        } else {
-          accuracyCircleRef.current.setLatLng(latLng);
-          accuracyCircleRef.current.setRadius(clampedAcc);
-        }
-      }
-
-      if (followUser) {
-        map.panTo(latLng, { animate: true });
-      }
+        .bindTooltip(
+          `Your Location (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})`,
+          { direction: 'top' }
+        )
+        .addTo(map);
+    } else {
+      userMarkerRef.current.setLatLng(latLng);
     }
 
-    const ringCenter = searchCenter || activeCenter;
-    if (ringCenter) {
-      const ringLatLng = [ringCenter.lat, ringCenter.lng];
-      if (!radiusCircleRef.current) {
-        radiusCircleRef.current = L.circle(ringLatLng, {
-          radius: radiusMeters,
-          color: '#f59e0b',
-          opacity: 0.45,
+    if (userLocation.accuracy) {
+      const clampedAcc = Math.min(Math.max(userLocation.accuracy, 15), 1500);
+      if (!accuracyCircleRef.current) {
+        accuracyCircleRef.current = L.circle(latLng, {
+          radius: clampedAcc,
+          color: '#38bdf8',
+          opacity: 0.55,
           weight: 1.5,
-          dashArray: '6, 8',
-          fillColor: '#f59e0b',
-          fillOpacity: 0.03,
+          fillColor: '#38bdf8',
+          fillOpacity: 0.14,
           interactive: false,
         }).addTo(map);
       } else {
-        radiusCircleRef.current.setLatLng(ringLatLng);
-        radiusCircleRef.current.setRadius(radiusMeters);
-      }
-
-      const showSearchPin =
-        !userLocation ||
-        haversineMeters(userLocation, ringCenter) > 150;
-
-      if (showSearchPin) {
-        if (!searchPinMarkerRef.current) {
-          searchPinMarkerRef.current = L.circleMarker(ringLatLng, {
-            radius: 6,
-            color: '#f59e0b',
-            weight: 2,
-            fillColor: '#fde68a',
-            fillOpacity: 0.9,
-          })
-            .bindTooltip('Search center', { direction: 'top' })
-            .addTo(map);
-        } else {
-          searchPinMarkerRef.current.setLatLng(ringLatLng);
-        }
-      } else if (searchPinMarkerRef.current) {
-        searchPinMarkerRef.current.remove();
-        searchPinMarkerRef.current = null;
+        accuracyCircleRef.current.setLatLng(latLng);
+        accuracyCircleRef.current.setRadius(clampedAcc);
       }
     }
-  }, [userLocation, searchCenter, radiusMeters, followUser]);
 
-  // Render Nearby Gym Markers on Leaflet Map
+    if (followUser) {
+      map.panTo(latLng, { animate: true });
+    }
+  }, [userLocation, followUser]);
+
+  // Update Searched / Pinned Marker + Popup
   useEffect(() => {
     const map = mapInstanceRef.current;
-    const gymLayer = gymLayerGroupRef.current;
-    if (!map || !gymLayer) return;
+    if (!map) return;
 
-    gymLayer.clearLayers();
-    gymMarkersMapRef.current.clear();
-
-    const bounds = L.latLngBounds([]);
-    if (userLocation) {
-      bounds.extend([userLocation.lat, userLocation.lng]);
-    } else if (searchCenter) {
-      bounds.extend([searchCenter.lat, searchCenter.lng]);
+    if (!selectedPlace) {
+      if (searchMarkerRef.current) {
+        searchMarkerRef.current.remove();
+        searchMarkerRef.current = null;
+      }
+      return;
     }
 
-    gymsWithLiveDistance.forEach((gym) => {
-      const isSelected = gym.id === selectedGymId;
-      const marker = L.marker([gym.position.lat, gym.position.lng], {
-        icon: createGymPinIcon(isSelected),
-        zIndexOffset: isSelected ? 1000 : 100,
-      });
+    const latLng = [selectedPlace.lat, selectedPlace.lng];
+    const dirUrl = buildDirectionsUrl(selectedPlace, userLocation);
+    const osmUrl = `https://www.openstreetmap.org/?mlat=${selectedPlace.lat}&mlon=${selectedPlace.lng}#map=16/${selectedPlace.lat}/${selectedPlace.lng}`;
 
-      const distLabel = formatDistance(gym.distanceMeters);
-      const dirUrl = buildDirectionsUrl(gym, userLocation);
-      const osmUrl = buildOsmUrl(gym);
-
-      const popupHtml = `
-        <div class="gmp-infowindow-card">
-          <h4>${escapeHtml(gym.name)}</h4>
-          <p class="gmp-iw-meta">
-            <span>${escapeHtml(gym.typeLabel)}</span>
-            ${distLabel ? `<span> &bull; ${escapeHtml(distLabel)} away</span>` : ''}
-          </p>
-          <p class="gmp-iw-address">${escapeHtml(gym.address)}</p>
-          ${gym.todayHours ? `<p class="gmp-iw-hours">Hours: ${escapeHtml(gym.todayHours)}</p>` : ''}
-          <div class="gmp-iw-links">
-            <a href="${escapeHtml(dirUrl)}" target="_blank" rel="noopener noreferrer">Get Directions</a>
-            <a href="${escapeHtml(osmUrl)}" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
-          </div>
+    const popupHtml = `
+      <div class="gmp-infowindow-card">
+        <h4>${escapeHtml(selectedPlace.title)}</h4>
+        ${selectedPlace.subtitle ? `<p class="gmp-iw-address">${escapeHtml(selectedPlace.subtitle)}</p>` : ''}
+        <div class="gmp-iw-links">
+          <a href="${escapeHtml(dirUrl)}" target="_blank" rel="noopener noreferrer">Directions</a>
+          <a href="${escapeHtml(osmUrl)}" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
         </div>
-      `;
+      </div>
+    `;
 
-      marker.bindPopup(popupHtml, { maxWidth: 280 });
-      marker.on('click', () => {
-        setFollowUser(false);
-        setSelectedGymId(gym.id);
-      });
-
-      marker.addTo(gymLayer);
-      gymMarkersMapRef.current.set(gym.id, marker);
-      bounds.extend([gym.position.lat, gym.position.lng]);
-    });
-
-    if (!followUser && gymsWithLiveDistance.length > 0 && !selectedGymId && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [44, 44], maxZoom: 15 });
+    if (!searchMarkerRef.current) {
+      searchMarkerRef.current = L.marker(latLng, {
+        icon: createSearchPinIcon(),
+        zIndexOffset: 1100,
+      })
+        .bindPopup(popupHtml, { maxWidth: 280 })
+        .addTo(map);
+    } else {
+      searchMarkerRef.current.setLatLng(latLng);
+      searchMarkerRef.current.setPopupContent(popupHtml);
     }
-  }, [gymsWithLiveDistance, selectedGymId, userLocation, searchCenter, followUser]);
 
-  const handleManualLocate = () => {
+    searchMarkerRef.current.openPopup();
+  }, [selectedPlace, userLocation]);
+
+  const handleLocateMe = () => {
     if (!('geolocation' in navigator)) {
       setGpsStatus('unsupported');
       setGpsError('Geolocation is not supported by this browser.');
@@ -708,8 +348,6 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
     setFollowUser(true);
     setGpsStatus('locating');
     setGpsError('');
-    setSearchInput('');
-    setAppliedNameFilter('');
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -719,29 +357,21 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
           accuracy: pos.coords.accuracy,
           updatedAt: Date.now(),
         };
-        const centerObj = { lat: nextPos.lat, lng: nextPos.lng };
         setUserLocation(nextPos);
         setGpsStatus('tracking');
-        lastAutoSearchPosRef.current = nextPos;
-        setSearchCenter(centerObj);
         try {
           localStorage.setItem(LAST_GPS_STORAGE_KEY, JSON.stringify(nextPos));
         } catch {
           // ignore
         }
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo([centerObj.lat, centerObj.lng], 14, { duration: 0.7 });
+          mapInstanceRef.current.flyTo([nextPos.lat, nextPos.lng], 15, { duration: 0.65 });
         }
-        runNearbyGymSearch({
-          center: centerObj,
-          radius: radiusMeters,
-          livePos: nextPos,
-        });
       },
       (err) => {
         console.warn('Manual geolocation failed:', err);
         setGpsStatus('denied');
-        setGpsError('Location access was blocked. Allow location permission, search a city above, or click the map.');
+        setGpsError('Location access was blocked. Allow browser location permission or search a place above.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -750,160 +380,183 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
     const trimmed = searchInput.trim();
-    if (!trimmed) {
-      setAppliedNameFilter('');
-      if (userLocation) {
-        const centerObj = { lat: userLocation.lat, lng: userLocation.lng };
-        setFollowUser(true);
-        setSearchCenter(centerObj);
-        runNearbyGymSearch({ center: centerObj, radius: radiusMeters, livePos: userLocation });
-      }
-      return;
-    }
+    if (!trimmed) return;
 
-    // First check if user is filtering gyms already near their current area
-    const localNameMatches = rawGyms.filter((g) =>
-      `${g.name} ${g.typeLabel} ${g.address}`.toLowerCase().includes(trimmed.toLowerCase())
-    );
-    if (localNameMatches.length > 0 && userLocation) {
-      setAppliedNameFilter(trimmed);
-      setFollowUser(false);
-      const first = localNameMatches[0];
-      setSelectedGymId(first.id);
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([first.position.lat, first.position.lng], 15, { duration: 0.6 });
-      }
-      return;
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
     }
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
 
-    // Otherwise geocode the city / neighborhood / address via Nominatim (no API key)
-    setAppliedNameFilter('');
-    setSearchingPlaces(true);
-    setPlacesError('');
+    setSearching(true);
+    setSearchError('');
+
     try {
-      const geo = await geocodePlaceNominatim(trimmed, userLocation || searchCenter);
-      if (!geo) {
-        setPlacesError(`No location found for "${trimmed}". Try a city or neighborhood name.`);
-        setSearchingPlaces(false);
+      const results = await searchPlacesNominatim(trimmed, userLocation, controller.signal);
+      if (results.length === 0) {
+        setSearchResults([]);
+        setSearchError(`No place found for "${trimmed}". Try a city, street, or landmark.`);
         return;
       }
+
+      setSearchResults(results);
+      const top = results[0];
       setFollowUser(false);
-      const newCenter = { lat: geo.lat, lng: geo.lng };
-      setSearchCenter(newCenter);
+      setSelectedPlace(top);
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([newCenter.lat, newCenter.lng], 14, { duration: 0.7 });
+        mapInstanceRef.current.flyTo([top.lat, top.lng], 15, { duration: 0.7 });
       }
-      await runNearbyGymSearch({
-        center: newCenter,
-        radius: radiusMeters,
-        livePos: userLocation,
-        labelOverride: `Gyms near ${geo.label}`,
-      });
     } catch (err) {
-      console.warn('Nominatim search failed:', err);
-      setPlacesError('Could not search that area right now. Please try again.');
-      setSearchingPlaces(false);
+      if (err.name === 'AbortError') return;
+      console.warn('Map search error:', err);
+      setSearchError('Could not search right now. Please try again.');
+    } finally {
+      setSearching(false);
     }
   };
 
-  const handleSearchThisArea = () => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    const c = map.getCenter();
-    if (!c) return;
-    const areaCenter = { lat: c.lat, lng: c.lng };
+  const handlePickSearchResult = (place) => {
     setFollowUser(false);
-    setAppliedNameFilter('');
-    setSearchCenter(areaCenter);
-    setPannedCenter(null);
-    runNearbyGymSearch({
-      center: areaCenter,
-      radius: radiusMeters,
-      livePos: userLocation,
-    });
-  };
-
-  const handleSelectGymFromList = (gym) => {
-    setFollowUser(false);
-    setSelectedGymId(gym.id);
+    setSelectedPlace(place);
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([gym.position.lat, gym.position.lng], 16, { duration: 0.55 });
+      mapInstanceRef.current.flyTo([place.lat, place.lng], 15, { duration: 0.6 });
     }
-    const marker = gymMarkersMapRef.current.get(gym.id);
-    if (marker) {
-      setTimeout(() => marker.openPopup(), 250);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchError('');
+    setSearchResults([]);
+    setSelectedPlace(null);
+    if (userLocation && mapInstanceRef.current) {
+      setFollowUser(true);
+      mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 0.6 });
     }
   };
 
   return (
     <div className={`google-gym-locator ${mode === 'compact' ? 'compact-mode' : 'full-mode'}`}>
-      {/* Search & Controls */}
+      {/* Search & Live Location Controls */}
       <div className="gmp-controls-bar">
         <form onSubmit={handleSearchSubmit} className="map-search-form">
           <div className="search-field-wrap">
             <Search size={17} className="search-icon" />
             <input
               type="text"
-              placeholder="Filter nearby gyms or search any city / area..."
+              placeholder="Search any city, address, neighborhood, or gym..."
               value={searchInput}
               onChange={(e) => {
                 setSearchInput(e.target.value);
-                if (!e.target.value.trim()) setAppliedNameFilter('');
+                setSearchError('');
               }}
             />
+            {(searchInput || selectedPlace) && (
+              <button
+                type="button"
+                className="map-search-clear-btn"
+                onClick={handleClearSearch}
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
-          <button type="submit" className="btn-search-map" disabled={searchingPlaces}>
-            {searchingPlaces ? 'Searching...' : 'Search'}
+
+          <button type="submit" className="btn-search-map" disabled={searching || !searchInput.trim()}>
+            {searching ? (
+              <span className="map-btn-inline">
+                <Loader2 size={14} className="spinning" />
+                <span>Searching...</span>
+              </span>
+            ) : (
+              'Search'
+            )}
           </button>
+
           <button
             type="button"
             className="btn-near-me"
-            onClick={handleManualLocate}
-            title="Track my live browser GPS location and show only nearby gyms"
+            onClick={handleLocateMe}
+            title="Center map on my live browser location"
           >
             <LocateFixed size={15} className={gpsStatus === 'locating' ? 'spinning' : ''} />
-            <span>{gpsStatus === 'locating' ? 'Locating...' : 'Near Me'}</span>
+            <span>{gpsStatus === 'locating' ? 'Locating...' : 'My Location'}</span>
           </button>
         </form>
 
-        <div className="gmp-meta-controls">
+        {/* Optional quick-pick pills when search returns multiple matches */}
+        {searchResults.length > 1 && (
           <div className="filter-chips-row">
-            <span className="chips-label">Filter:</span>
-            {FACILITY_FILTERS.map((f) => (
+            <span className="chips-label">Matches:</span>
+            {searchResults.map((place) => (
               <button
-                key={f}
+                key={place.id}
                 type="button"
-                className={`chip-btn ${activeFilter === f ? 'active' : ''}`}
-                onClick={() => setActiveFilter(f)}
+                className={`chip-btn ${selectedPlace?.id === place.id ? 'active' : ''}`}
+                onClick={() => handlePickSearchResult(place)}
+                title={place.subtitle}
               >
-                {f}
+                <MapPin size={11} style={{ marginRight: 4, verticalAlign: '-1px' }} />
+                {place.title}
               </button>
             ))}
           </div>
+        )}
+      </div>
 
-          <div className="gmp-tracking-controls">
-            <label className="gmp-radius-select-wrap">
-              <span>Nearby Radius:</span>
-              <select
-                value={radiusMeters}
-                onChange={(e) => setRadiusMeters(Number(e.target.value))}
-                aria-label="Search radius"
-              >
-                {RADIUS_OPTIONS.map((r) => (
-                  <option key={r.meters} value={r.meters}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+      {/* Geolocation / Search Status Notice */}
+      {(gpsError || searchError) && (
+        <div className="gmp-inline-notice" role="status">
+          <span>{searchError || gpsError}</span>
+          {gpsStatus === 'denied' && !searchError && (
+            <button type="button" onClick={handleLocateMe} className="gmp-retry-link">
+              Retry GPS
+            </button>
+          )}
+        </div>
+      )}
 
+      {/* Map Only (with Live Location & Search Pin) */}
+      <div className="map-frame-wrapper">
+        <div className="map-frame-header">
+          <div className="gmp-status-left">
+            <span
+              className={`gmp-gps-dot ${
+                gpsStatus === 'tracking'
+                  ? 'live'
+                  : gpsStatus === 'locating'
+                  ? 'locating'
+                  : 'idle'
+              }`}
+            />
+            <span className="active-query-text">
+              {gpsStatus === 'tracking' && userLocation ? (
+                <>
+                  <strong>My Live Location</strong> ({userLocation.lat.toFixed(4)},{' '}
+                  {userLocation.lng.toFixed(4)}
+                  {userLocation.accuracy ? ` • ±${Math.round(userLocation.accuracy)}m` : ''})
+                </>
+              ) : gpsStatus === 'locating' ? (
+                <strong>Detecting your browser location...</strong>
+              ) : selectedPlace ? (
+                <>
+                  <strong>Showing:</strong> {selectedPlace.title}
+                </>
+              ) : (
+                <strong>Search a place above or allow browser location</strong>
+              )}
+            </span>
+          </div>
+
+          <div className="gmp-header-actions">
             <button
               type="button"
               className={`gmp-live-toggle ${trackingEnabled && gpsStatus === 'tracking' ? 'is-live' : ''}`}
               onClick={() => setTrackingEnabled((prev) => !prev)}
               title={trackingEnabled ? 'Pause live browser GPS tracking' : 'Resume live browser GPS tracking'}
             >
-              {trackingEnabled ? <Pause size={13} /> : <Play size={13} />}
+              {trackingEnabled ? <Pause size={12} /> : <Play size={12} />}
               <span>{trackingEnabled ? 'Live GPS On' : 'GPS Paused'}</span>
             </button>
 
@@ -913,169 +566,29 @@ export default function FreeLiveGymMap({ mode = 'full', onOpenFullMap }) {
                 className="gmp-recenter-btn"
                 onClick={() => {
                   setFollowUser(true);
-                  const centerObj = { lat: userLocation.lat, lng: userLocation.lng };
-                  setSearchCenter(centerObj);
                   if (mapInstanceRef.current) {
-                    mapInstanceRef.current.flyTo([centerObj.lat, centerObj.lng], 14, { duration: 0.6 });
+                    mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], 15, {
+                      duration: 0.6,
+                    });
                   }
                 }}
               >
-                <Compass size={13} />
+                <Compass size={12} />
                 <span>Recenter</span>
+              </button>
+            )}
+
+            {mode === 'compact' && onOpenFullMap && (
+              <button type="button" className="gmp-expand-btn" onClick={onOpenFullMap}>
+                <span>Full Map</span>
+                <ExternalLink size={12} />
               </button>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Geolocation / Search Status Banner */}
-      {(gpsError || placesError) && (
-        <div className="gmp-inline-notice" role="status">
-          <span>{placesError || gpsError}</span>
-          {gpsStatus === 'denied' && (
-            <button type="button" onClick={handleManualLocate} className="gmp-retry-link">
-              Retry GPS
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Map + Nearby Gyms Layout */}
-      <div className={mode === 'compact' ? 'dashboard-map-layout' : 'gmp-full-layout'}>
-        <div className="map-frame-wrapper">
-          <div className="map-frame-header">
-            <div className="gmp-status-left">
-              <span
-                className={`gmp-gps-dot ${
-                  gpsStatus === 'tracking'
-                    ? 'live'
-                    : gpsStatus === 'locating'
-                    ? 'locating'
-                    : 'idle'
-                }`}
-              />
-              <span className="active-query-text">
-                {gpsStatus === 'tracking' && userLocation ? (
-                  <>
-                    <strong>Live GPS Tracking</strong> (±{Math.round(userLocation.accuracy || 0)}m) &bull;{' '}
-                    {activeQueryLabel}
-                  </>
-                ) : (
-                  <strong>{activeQueryLabel}</strong>
-                )}
-              </span>
-            </div>
-
-            <div className="gmp-header-actions">
-              {pannedCenter && (
-                <button
-                  type="button"
-                  className="gmp-search-area-btn"
-                  onClick={handleSearchThisArea}
-                  disabled={searchingPlaces}
-                >
-                  <RefreshCw size={12} />
-                  <span>Search This Area</span>
-                </button>
-              )}
-              {mode === 'compact' && onOpenFullMap && (
-                <button type="button" className="gmp-expand-btn" onClick={onOpenFullMap}>
-                  <span>Full Map</span>
-                  <ExternalLink size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className={`gmp-map-canvas-shell ${mode === 'compact' ? 'is-compact' : 'is-full'}`}>
-            <div ref={mapContainerRef} className="free-leaflet-map" />
-          </div>
-        </div>
-
-        {/* Nearby Gyms Results Column / Grid */}
-        <div className={mode === 'compact' ? 'nearest-facilities-card' : 'curated-gyms-section'}>
-          <div className="section-title-row">
-            <div>
-              <h3>
-                {searchingPlaces
-                  ? 'Finding Nearby Gyms...'
-                  : `Nearby Gyms (${gymsWithLiveDistance.length})`}
-              </h3>
-              <span>
-                {userLocation
-                  ? `Only gyms within ${(radiusMeters / 1000).toFixed(0)} km, sorted nearest first`
-                  : 'OpenStreetMap gyms within your selected radius'}
-              </span>
-            </div>
-            {searchingPlaces && <Loader2 size={16} className="spinning text-gold" />}
-          </div>
-
-          {!searchingPlaces && visibleGyms.length === 0 ? (
-            <div className="gmp-empty-gyms">
-              <Navigation size={22} />
-              <p>
-                {searchCenter
-                  ? `No gyms found within ${(radiusMeters / 1000).toFixed(0)} km. Try increasing the radius or clearing filters.`
-                  : 'Allow browser location access or search a city above to see nearby gyms.'}
-              </p>
-            </div>
-          ) : (
-            <div className={mode === 'compact' ? 'facilities-list' : 'gyms-cards-grid'}>
-              {visibleGyms.map((gym) => {
-                const distLabel = formatDistance(gym.distanceMeters);
-                const isSelected = gym.id === selectedGymId;
-                return (
-                  <div
-                    key={gym.id}
-                    className={`gym-card-tile ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => handleSelectGymFromList(gym)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleSelectGymFromList(gym);
-                      }
-                    }}
-                  >
-                    <div className="gym-tile-top">
-                      <span className="gym-type-tag">{gym.typeLabel}</span>
-                      {gym.is24Hours && <span className="gym-rating-pill">24/7 Open</span>}
-                    </div>
-
-                    <h4 className="gym-name">{gym.name}</h4>
-                    <p className="gym-address">
-                      <MapPin size={13} className="pin-icon" />
-                      <span>{gym.address}</span>
-                    </p>
-
-                    <div className="gym-info-chips">
-                      {distLabel && <span className="info-chip distance">{distLabel} away</span>}
-                      <span className="info-chip status">Nearby Gym</span>
-                    </div>
-
-                    <div className="gym-card-footer">
-                      <span className="gym-hours">
-                        <Clock size={12} />
-                        <span>{gym.todayHours || 'OpenStreetMap Verified'}</span>
-                      </span>
-
-                      <a
-                        href={buildDirectionsUrl(gym, userLocation)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-directions-link"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span>Directions</span>
-                        <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div className={`gmp-map-canvas-shell ${mode === 'compact' ? 'is-compact' : 'is-full'}`}>
+          <div ref={mapContainerRef} className="free-leaflet-map" />
         </div>
       </div>
     </div>

@@ -2840,9 +2840,9 @@ const Dashboard = () => {
                 </div>
                 <div className="section-title-between">
                   <div>
-                    <div className="widget-badge-tag gold">GYM LOCATOR</div>
-                    <h2 className="section-title">Nearby Training Centers</h2>
-                    <p className="section-desc">Live browser GPS tracking showing nearby gyms within your radius and directions</p>
+                    <div className="widget-badge-tag gold">LIVE MAP</div>
+                    <h2 className="section-title">My Location &amp; Map Search</h2>
+                    <p className="section-desc">Live browser GPS location tracking and instant map search without any API key</p>
                   </div>
 
                   <div className="map-action-pills">

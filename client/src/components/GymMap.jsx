@@ -19,8 +19,8 @@ const GymMap = () => {
             <MapPin size={22} />
           </div>
           <div>
-            <h2>Fitness Centers &amp; Gym Locator</h2>
-            <p>Live browser GPS location tracking to discover nearby gyms and directions.</p>
+            <h2>Live Location &amp; Map Search</h2>
+            <p>Track your live browser GPS location and search any place on the map — no API key required.</p>
           </div>
         </div>
       </div>
