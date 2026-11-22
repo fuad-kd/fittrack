@@ -461,6 +461,19 @@
   z-index: 1;
 }
 
+.free-leaflet-map .leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%);
+}
+
+.free-leaflet-map .leaflet-overlay-pane,
+.free-leaflet-map .leaflet-marker-pane,
+.free-leaflet-map .leaflet-popup-pane,
+.free-leaflet-map .free-gps-beacon-wrapper,
+.free-leaflet-map .free-gym-pin-wrapper,
+.free-leaflet-map .leaflet-popup-content-wrapper {
+  filter: none;
+}
+
 .free-gps-beacon-wrapper,
 .free-gym-pin-wrapper {
   background: transparent;
@@ -488,6 +501,11 @@
     box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25), 0 6px 16px rgba(0, 0, 0, 0.55);
   }
 
+  &.is-search-pin {
+    background: #38bdf8;
+    border-color: #0369a1;
+  }
+
   .free-gym-pin-dot {
     width: 8px;
     height: 8px;
@@ -499,10 +517,11 @@
 
 .free-leaflet-map .leaflet-popup-content-wrapper,
 .free-leaflet-map .leaflet-popup-tip {
-  background: #f8fafc;
-  color: #0f172a;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
 
 .free-leaflet-map .leaflet-control-zoom a {
@@ -555,49 +574,58 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
-/* InfoWindow Card (Google InfoWindow surface is light) */
+/* Popup Info Card */
 .gmp-infowindow-card {
-  color: #0f172a;
+  color: #f8fafc;
   font-family: inherit;
-  padding: 0.15rem 0.2rem;
+  padding: 0.2rem 0.25rem;
 
   h4 {
     margin: 0 0 0.25rem 0;
     font-size: 0.95rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #f8fafc;
   }
 
   .gmp-iw-meta {
     margin: 0 0 0.3rem 0;
     font-size: 0.78rem;
     font-weight: 600;
-    color: #b45309;
+    color: #fbbf24;
   }
 
   .gmp-iw-address,
   .gmp-iw-hours {
     margin: 0 0 0.3rem 0;
     font-size: 0.78rem;
-    color: #475569;
+    color: #94a3b8;
     line-height: 1.35;
   }
 
-  .gmp-iw-links {
-    display: flex;
+  .gmp-iw-actions {
+    margin-top: 0.55rem;
+  }
+
+  .gmp-iw-gmaps-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.45rem;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.42rem 0.75rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+    color: #07090e !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 
-    a {
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: #d97706;
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(245, 158, 11, 0.4);
       text-decoration: none;
-
-      &:hover {
-        text-decoration: underline;
-      }
     }
   }
 }
@@ -711,6 +739,16 @@
       border-radius: 20px;
     }
 
+    .gym-24h-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.16rem 0.5rem;
+      border-radius: 20px;
+    }
+
     .gym-rating-pill {
       display: inline-flex;
       align-items: center;
@@ -798,6 +836,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+    flex-wrap: wrap;
     margin-top: auto;
     padding-top: 0.65rem;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -809,6 +848,7 @@
       font-size: 0.74rem;
       color: #94a3b8;
       min-width: 0;
+      max-width: 100%;
 
       span {
         overflow: hidden;
@@ -817,20 +857,24 @@
       }
     }
 
-    .btn-directions-link {
+    .btn-google-directions {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: #f59e0b;
+      gap: 0.38rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #07090e;
+      background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
       text-decoration: none;
       flex-shrink: 0;
-      transition: color 0.2s ease;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.24);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
 
       &:hover {
-        color: #fde68a;
-        text-decoration: underline;
+        transform: translateY(-1px);
+        box-shadow: 0 5px 14px rgba(245, 158, 11, 0.38);
       }
     }
   }

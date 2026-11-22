@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { MapPin } from 'lucide-react';
-import GoogleGymLocator from './GoogleGymLocator';
+import FreeLiveGymMap from './FreeLiveGymMap';
 import './GymMap.scss';
 
 const GymMap = () => {
@@ -19,13 +19,16 @@ const GymMap = () => {
             <MapPin size={22} />
           </div>
           <div>
-            <h2>Live Location &amp; Map Search</h2>
-            <p>Track your live browser GPS location and search any place on the map — no API key required.</p>
+            <h2>Gym &amp; Fitness Locator</h2>
+            <p>
+              Live browser GPS tracking, nearby gym discovery, and instant Google Maps directions —
+              100% free with zero API keys.
+            </p>
           </div>
         </div>
       </div>
 
-      <GoogleGymLocator mode="full" />
+      <FreeLiveGymMap mode="full" />
     </div>
   );
 };
